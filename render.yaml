@@ -17,15 +17,15 @@ services:
         value: prod
       - key: LOG_LEVEL
         value: INFO
-      # ── PostgreSQL (set these in the Render dashboard as secrets) ───────────
+      # ── PostgreSQL (Supabase Session Pooler) ────────────────────────────────
       - key: POSTGRES_HOST
-        value: rahatutt
+        value: aws-0-ap-northeast-1.pooler.supabase.com
       - key: POSTGRES_PORT
-        value: "5433"
+        value: "5432"
       - key: POSTGRES_DB
-        value: IuTQbank
+        value: postgres
       - key: POSTGRES_USER
-        value: StUdent
+        value: postgres.fiaqyqqonytijjulunuc
       - key: POSTGRES_PASSWORD
         sync: false
       # ── Qdrant Cloud (set in Render dashboard as secrets) ───────────────────
