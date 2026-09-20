@@ -197,7 +197,7 @@ async def _ensure_source(
     return source
 
 
-async def _process_document(  # noqa: PLR0913 — orchestrator; many deps expected
+async def _process_document(
     *,
     remote_doc,
     source: Source,
@@ -599,7 +599,7 @@ async def run(limit: int | None, dry_run: bool) -> int:
                     if not dry_run:
                         await session.commit()
 
-                except Exception:  # noqa: BLE001
+                except Exception:
                     stats.failed += 1
                     stats.failed_titles.append(remote_doc.title or remote_doc.remote_id)
                     logger.error(
