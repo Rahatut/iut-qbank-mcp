@@ -1,0 +1,54 @@
+# Render Blueprint — deploys the IUT QBank MCP server as a free web service.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: iut-qbank-mcp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore          # closest to Bangladesh — change if needed
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      # ── MCP Transport ───────────────────────────────────────────────────────
+      - key: MCP_TRANSPORT
+        value: http
+      - key: APP_ENV
+        value: prod
+      - key: LOG_LEVEL
+        value: INFO
+      # ── PostgreSQL (set these in the Render dashboard as secrets) ───────────
+      - key: POSTGRES_HOST
+        sync: false
+      - key: POSTGRES_PORT
+        value: "5432"
+      - key: POSTGRES_DB
+        sync: false
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      # ── Qdrant Cloud (set in Render dashboard as secrets) ───────────────────
+      - key: QDRANT_HOST
+        sync: false
+      - key: QDRANT_PORT
+        value: "6333"
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_ACTIVE_COLLECTION
+        value: iut_qbank_chunks_v1
+      # ── Embedding ───────────────────────────────────────────────────────────
+      - key: EMBEDDING_PROVIDER
+        value: sentence_transformers
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+      - key: EMBEDDING_DIMENSION
+        value: "384"
+      # ── Storage (local is fine since no ingestion runs on Render) ───────────
+      - key: STORAGE_BACKEND
+        value: local
+      - key: STORAGE_LOCAL_PATH
+        value: /tmp/storage
+      # ── Tenant ──────────────────────────────────────────────────────────────
+      - key: TENANT_ID
+        value: IUT
