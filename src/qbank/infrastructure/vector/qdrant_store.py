@@ -173,12 +173,18 @@ class QdrantStore:
         settings = get_settings()
         self._collection = settings.qdrant_active_collection
         self._dimension = settings.embedding_dimension
-        self._client = client or AsyncQdrantClient(
-            host=settings.qdrant_host,
-            port=settings.qdrant_port,
-            https=False,
-            api_key=settings.qdrant_api_key,
-        )
+        if settings.qdrant_host.startswith(("http://", "https://")):
+            self._client = client or AsyncQdrantClient(
+                url=settings.qdrant_host,
+                api_key=settings.qdrant_api_key,
+            )
+        else:
+            self._client = client or AsyncQdrantClient(
+                host=settings.qdrant_host,
+                port=settings.qdrant_port,
+                https=False,
+                api_key=settings.qdrant_api_key,
+            )
 
     @property
     def collection(self) -> str:
