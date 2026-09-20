@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -99,11 +100,17 @@ class DSpaceConnector(ContentSource):
 
     # ── Discovery ─────────────────────────────────────────────────────────────
 
+    # Artifact patterns to exclude from academic ingestion
+    _EXCLUDED_BITSTREAM_PATTERNS = re.compile(
+        r"(\bturnitin\b|similarity\s*report|originality\s*report|^\d+%\s*thesis|\blicense\b)",
+        re.IGNORECASE,
+    )
+
     async def discover(self) -> AsyncIterator[RemoteDocument]:
-        """Yield RemoteDocument for every PDF bitstream in DSpace.
+        """Yield RemoteDocument for every valid academic PDF bitstream in DSpace.
 
         Walks: communities → collections → items → bitstreams
-        Only yields items with at least one PDF bitstream.
+        Filters out non-academic artifacts (Turnitin reports, license files, etc.).
         """
         async for item in self._iter_all_items():
             pdf_bitstreams = [
@@ -113,6 +120,11 @@ class DSpaceConnector(ContentSource):
                 and b.get("name", "").lower().endswith(".pdf")
             ]
             for bitstream in pdf_bitstreams:
+                name = bitstream.get("name", "")
+                if self._EXCLUDED_BITSTREAM_PATTERNS.search(name):
+                    logger.info("Skipping non-academic artifact bitstream: %s", name)
+                    continue
+
                 doc = self._to_remote_document(item, bitstream)
                 yield doc
 
@@ -194,7 +206,11 @@ class DSpaceConnector(ContentSource):
         )
 
     def _to_remote_document(self, item: DSpaceItem, bitstream: dict[str, Any]) -> RemoteDocument:
-        """Convert a DSpaceItem + bitstream into a RemoteDocument."""
+        """Convert a DSpaceItem + bitstream into a RemoteDocument.
+
+        Scopes remote_id per bitstream to prevent collision when an item
+        contains multiple PDF bitstreams.
+        """
         bs_uuid = bitstream.get("uuid", "")
         download_url = f"{self._base_url}/server/api/core/bitstreams/{bs_uuid}/content"
         handle_url = f"{self._base_url}/handle/{item.handle}" if item.handle else ""
@@ -208,15 +224,26 @@ class DSpaceConnector(ContentSource):
             except ValueError:
                 pass
 
+        bs_name = bitstream.get("name", "")
+        # Provenance includes item-level metadata alongside specific bitstream attributes
+        extended_meta: dict[str, Any] = {
+            **item.metadata,
+            "item_uuid": item.uuid,
+            "item_name": item.name,
+            "bitstream_uuid": bs_uuid,
+            "filename": bs_name,
+            "bundle_name": bitstream.get("bundleName", "ORIGINAL"),
+        }
+
         return RemoteDocument(
-            remote_id=item.uuid,
-            title=item.name or bitstream.get("name", ""),
+            remote_id=f"{item.uuid}/{bs_uuid}" if bs_uuid else item.uuid,
+            title=item.name or bs_name,
             document_url=download_url,
             handle_url=handle_url,
             checksum=checksum,
             last_modified=last_modified,
             file_size_bytes=bitstream.get("sizeBytes"),
-            metadata=item.metadata,
+            metadata=extended_meta,
             collection_path=[],  # TODO: populate from community/collection hierarchy
         )
 

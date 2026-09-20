@@ -37,7 +37,9 @@ _DEPT_PATTERNS = {
     "TVE": re.compile(r"\bTVE\b"),
     "BTM": re.compile(r"\bBTM\b"),
 }
+# Match academic course codes, e.g. CSE4105, MATH 1101, PHY-101
 _COURSE_CODE_PATTERN = re.compile(r"\b([A-Za-z]{2,4})[\s\-_]?(\d{3,4}[A-Za-z]?)\b")
+_STOPWORD_PREFIXES = frozenset({"IN", "AT", "ON", "BY", "TO", "OF", "FOR", "NO", "VOL", "PP"})
 
 
 def _find_year(text: str) -> tuple[int | None, float]:
@@ -70,6 +72,9 @@ def _find_department(text: str) -> tuple[str | None, float]:
 
 def _find_course_code(text: str) -> tuple[str | None, float]:
     for m in _COURSE_CODE_PATTERN.finditer(text):
+        raw_prefix = m.group(1).upper()
+        if raw_prefix in _STOPWORD_PREFIXES:
+            continue
         canonical = normalize_course_code(m.group(0))
         if canonical:
             return canonical, 0.7
