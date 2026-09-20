@@ -13,7 +13,7 @@ Embedding pipeline (DEV-023):
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from qbank.infrastructure.config import get_settings
 from qbank.processing.interfaces import EmbeddingProvider
@@ -40,11 +40,11 @@ class SentenceTransformerProvider(EmbeddingProvider):
         self._model_name = model_name or settings.embedding_model
         self._batch_size = batch_size or settings.embedding_batch_size
         self._dimension = settings.embedding_dimension
-        self._model = None  # lazy-loaded
+        self._model: Any = None  # lazy-loaded
 
     # ── Lazy model loading ────────────────────────────────────────────────────
 
-    def _get_model(self):  # type: ignore[return]
+    def _get_model(self) -> Any:
         if self._model is None:
             try:
                 from sentence_transformers import SentenceTransformer
@@ -106,7 +106,7 @@ class SentenceTransformerProvider(EmbeddingProvider):
             convert_to_numpy=True,
             normalize_embeddings=True,
         )
-        return embedding.tolist()  # type: ignore[union-attr]
+        return cast(list[float], embedding.tolist())
 
     @property
     def model_name(self) -> str:

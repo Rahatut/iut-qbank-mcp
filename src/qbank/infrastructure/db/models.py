@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -115,7 +116,9 @@ class SourceRow(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
 
     documents: Mapped[list[DocumentRow]] = relationship("DocumentRow", back_populates="source")
     sync_runs: Mapped[list[SyncRunRow]] = relationship("SyncRunRow", back_populates="source")
@@ -151,7 +154,9 @@ class DocumentRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
 
     source: Mapped[SourceRow] = relationship("SourceRow", back_populates="documents")
     course: Mapped[CourseRow | None] = relationship("CourseRow", back_populates="documents")
@@ -193,7 +198,9 @@ class DocumentVersionRow(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, default=dict
+    )
 
     document: Mapped[DocumentRow] = relationship("DocumentRow", back_populates="versions")
     chunks: Mapped[list[DocumentChunkRow]] = relationship(

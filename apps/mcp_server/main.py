@@ -138,7 +138,8 @@ def main() -> None:
             routes=[
                 Route("/health", health, methods=["GET"]),
                 Mount("/", app=mcp_asgi),
-            ]
+            ],
+            lifespan=mcp_asgi.lifespan,
         )
 
         uvicorn.run(

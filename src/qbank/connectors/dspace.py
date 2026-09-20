@@ -84,7 +84,7 @@ class DSpaceConnector(ContentSource):
         return self._client
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    async def _get_json(self, url: str, params: dict | None = None) -> dict[str, Any]:
+    async def _get_json(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         client = await self._get_client()
         response = await client.get(url, params=params)
         response.raise_for_status()

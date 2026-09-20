@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 # ── Shared data structures ────────────────────────────────────────────────────
 
@@ -128,9 +129,9 @@ class MetadataExtractor(ABC):
     def extract(
         self,
         *,
-        repository_metadata: dict | None = None,
+        repository_metadata: dict[str, Any] | None = None,
         filename: str | None = None,
-        pdf_metadata: dict | None = None,
+        pdf_metadata: dict[str, Any] | None = None,
         text_sample: str | None = None,
     ) -> NormalizedMetadata:
         """Extract and normalize metadata. Returns best-effort result with confidence."""
@@ -149,7 +150,7 @@ class Classifier(ABC):
         self,
         filename: str | None,
         text_sample: str | None,
-        repository_metadata: dict | None = None,
+        repository_metadata: dict[str, Any] | None = None,
     ) -> tuple[str, float]:
         """Return (document_type, confidence). document_type matches DocumentType enum values."""
         ...

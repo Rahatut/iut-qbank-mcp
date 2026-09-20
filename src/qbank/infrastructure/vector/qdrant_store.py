@@ -282,7 +282,7 @@ class QdrantStore:
         name = collection or self._collection
         await self._client.delete(
             collection_name=name,
-            points_selector=Filter(  # type: ignore[arg-type]
+            points_selector=Filter(
                 must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
             ),
         )

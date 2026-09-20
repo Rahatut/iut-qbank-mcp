@@ -254,7 +254,7 @@ class SqlDocumentRepository(DocumentRepository):
             q = q.where(DocumentRow.year == year)
         if semester is not None:
             q = q.where(DocumentRow.semester == semester)
-        q = q.limit(limit).order_by(DocumentRow.year.desc())  # type: ignore[arg-type]
+        q = q.limit(limit).order_by(DocumentRow.year.desc())
         result = await self._session.execute(q)
         return [_row_to_document(r) for r in result.scalars().all()]
 
@@ -335,7 +335,7 @@ class SqlDocumentVersionRepository(DocumentVersionRepository):
         result = await self._session.execute(
             select(DocumentVersionRow)
             .where(DocumentVersionRow.document_id == document_id)
-            .order_by(DocumentVersionRow.created_at.desc())  # type: ignore[arg-type]
+            .order_by(DocumentVersionRow.created_at.desc())
             .limit(1)
         )
         row = result.scalar_one_or_none()
@@ -580,7 +580,7 @@ class SqlSyncRunRepository(SyncRunRepository):
         result = await self._session.execute(
             select(SyncRunRow)
             .where(SyncRunRow.source_id == source_id)
-            .order_by(SyncRunRow.started_at.desc())  # type: ignore[arg-type]
+            .order_by(SyncRunRow.started_at.desc())
             .limit(1)
         )
         row = result.scalar_one_or_none()

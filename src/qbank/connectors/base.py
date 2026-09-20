@@ -18,6 +18,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -35,7 +36,7 @@ class RemoteDocument:
     checksum: str | None = None  # remote checksum if available
     last_modified: datetime | None = None
     file_size_bytes: int | None = None
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     collection_path: list[str] = field(default_factory=list)
 
 
@@ -57,7 +58,7 @@ class ContentSource(ABC):
     """
 
     @abstractmethod
-    async def discover(self) -> AsyncIterator[RemoteDocument]:
+    def discover(self) -> AsyncIterator[RemoteDocument]:
         """Yield all discoverable documents from this source.
 
         Should yield RemoteDocument objects without downloading file content.

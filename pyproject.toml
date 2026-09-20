@@ -121,6 +121,10 @@ module = [
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "qbank.processing.extractor"
+disallow_untyped_calls = false
+
 # ── Coverage ──────────────────────────────────────────────────────────────────
 [tool.coverage.run]
 source = ["src"]

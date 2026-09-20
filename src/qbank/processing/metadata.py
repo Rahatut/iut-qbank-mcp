@@ -11,6 +11,7 @@ Retains confidence values for every field.
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from qbank.domain.course_normalization import normalize_course_code
 from qbank.processing.interfaces import MetadataExtractor, NormalizedMetadata
@@ -84,9 +85,9 @@ class RuleBasedMetadataExtractor(MetadataExtractor):
     def extract(
         self,
         *,
-        repository_metadata: dict | None = None,
+        repository_metadata: dict[str, Any] | None = None,
         filename: str | None = None,
-        pdf_metadata: dict | None = None,
+        pdf_metadata: dict[str, Any] | None = None,
         text_sample: str | None = None,
     ) -> NormalizedMetadata:
         result = NormalizedMetadata()
@@ -133,10 +134,10 @@ class RuleBasedMetadataExtractor(MetadataExtractor):
         result.confidence = sum(found) / len(found) if found else 0.0
         return result
 
-    def _flatten(self, meta: dict) -> str:  # type: ignore[type-arg]
+    def _flatten(self, meta: dict[str, Any]) -> str:
         return " ".join(str(v) for v in meta.values() if v)
 
-    def _flatten_repo(self, meta: dict) -> str:  # type: ignore[type-arg]
+    def _flatten_repo(self, meta: dict[str, Any]) -> str:
         parts: list[str] = []
         for values in meta.values():
             if isinstance(values, list):

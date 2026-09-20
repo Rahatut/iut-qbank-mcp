@@ -11,7 +11,7 @@ Does NOT OCR every document automatically.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pymupdf as fitz
 
@@ -99,7 +99,7 @@ class PyMuPDFExtractor(Extractor):
         for page_num in range(len(doc)):
             page = doc[page_num]
             try:
-                text = page.get_text("text")  # type: ignore[attr-defined]
+                text = str(page.get_text("text"))
             except Exception as exc:
                 logger.warning("Page %d extraction failed: %s", page_num + 1, exc)
                 text = ""
@@ -154,7 +154,7 @@ class PyMuPDFExtractor(Extractor):
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         page = doc[page_number - 1]
         mat = fitz.Matrix(dpi / 72, dpi / 72)
-        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)  # type: ignore[attr-defined]
-        png_bytes = pix.tobytes("png")
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
+        png_bytes = cast(bytes, pix.tobytes("png"))
         doc.close()
         return png_bytes
