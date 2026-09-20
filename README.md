@@ -1,6 +1,6 @@
 # IUT Question Bank MCP Server
 
-A retrieval-augmented MCP server providing semantic search over the IUT academic question bank, sourced from [IUT DSpace](https://dspace.iutoic-dhaka.net).
+A retrieval-augmented MCP server providing semantic search over the IUT academic question bank, sourced from [IUT DSpace](https://repository.iutoic-dhaka.edu).
 
 ## Architecture
 

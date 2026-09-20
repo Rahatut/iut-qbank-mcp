@@ -49,6 +49,13 @@ services:
         value: local
       - key: STORAGE_LOCAL_PATH
         value: /tmp/storage
+      # ── Ingestion / DSpace ───────────────────────────────────────────────────
+      - key: DSPACE_BASE_URL
+        value: https://repository.iutoic-dhaka.edu
+      - key: DSPACE_COMMUNITY_ID
+        value: cdf3c86c-6c9e-4def-a892-0b7b0591280f
+      - key: DSPACE_API_VERSION
+        value: "7"
       # ── Tenant ──────────────────────────────────────────────────────────────
       - key: TENANT_ID
         value: IUT

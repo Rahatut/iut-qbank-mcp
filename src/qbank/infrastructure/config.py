@@ -98,7 +98,10 @@ class Settings(BaseSettings):
 
     # ── Ingestion ─────────────────────────────────────────────────────────────
     dspace_base_url: str = Field(
-        default="https://dspace.iutoic-dhaka.net", alias="DSPACE_BASE_URL"
+        default="https://repository.iutoic-dhaka.edu", alias="DSPACE_BASE_URL"
+    )
+    dspace_community_id: str = Field(
+        default="cdf3c86c-6c9e-4def-a892-0b7b0591280f", alias="DSPACE_COMMUNITY_ID"
     )
     dspace_api_version: str = Field(default="7", alias="DSPACE_API_VERSION")
     ingestion_max_concurrent_downloads: int = Field(

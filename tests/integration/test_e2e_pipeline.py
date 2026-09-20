@@ -50,8 +50,8 @@ async def test_end_to_end_ingestion_and_retrieval() -> None:
     remote_doc = RemoteDocument(
         remote_id=f"dspace-item-{uuid.uuid4().hex[:8]}",
         title="CSE 4105 Operating Systems Final Examination Winter 2023",
-        document_url="https://dspace.iutoic-dhaka.net/bitstream/sample-cse4105.pdf",
-        handle_url="https://dspace.iutoic-dhaka.net/handle/123456789/100",
+        document_url="https://repository.iutoic-dhaka.edu/bitstream/sample-cse4105.pdf",
+        handle_url="https://repository.iutoic-dhaka.edu/handle/123456789/100",
         metadata={
             "dc.title": ["CSE 4105 Operating Systems Final Examination Winter 2023"],
             "dc.subject": ["Operating Systems", "Deadlock", "Virtual Memory"],
@@ -120,7 +120,7 @@ async def test_end_to_end_ingestion_and_retrieval() -> None:
                     source_id=source_id,
                     source_type=SourceType.DSPACE,
                     name="IUT DSpace",
-                    base_url="https://dspace.iutoic-dhaka.net",
+                    base_url="https://repository.iutoic-dhaka.edu",
                 )
             )
 

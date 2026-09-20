@@ -4,7 +4,7 @@ Implements the ContentSource interface for the IUT DSpace 7 REST API.
 Discovers communities → collections → items → bitstreams.
 
 DSpace 7 REST API reference:
-    https://dspace.iutoic-dhaka.net/server/api
+    https://repository.iutoic-dhaka.edu/server/api
 """
 from __future__ import annotations
 

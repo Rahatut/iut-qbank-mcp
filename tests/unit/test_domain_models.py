@@ -40,7 +40,7 @@ class TestDomainModelsInstantiation:
         source = Source(
             source_type=SourceType.DSPACE,
             name="IUT DSpace",
-            base_url="https://dspace.iutoic-dhaka.net",
+            base_url="https://repository.iutoic-dhaka.edu",
         )
         assert source.is_active is True
         assert source.last_synced_at is None
@@ -80,9 +80,9 @@ class TestProvenance:
         prov = Provenance(
             source_id="s1",
             source_type=SourceType.DSPACE,
-            source_url="https://dspace.iutoic-dhaka.net",
+            source_url="https://repository.iutoic-dhaka.edu",
             document_id="d1",
-            document_url="https://dspace.iutoic-dhaka.net/handle/123",
+            document_url="https://repository.iutoic-dhaka.edu/handle/123",
             document_title="CSE3101 Final 2024",
             version_id="v1",
             version_hash="sha256abc",
