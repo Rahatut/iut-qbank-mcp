@@ -19,18 +19,18 @@ services:
         value: INFO
       # ── PostgreSQL (set these in the Render dashboard as secrets) ───────────
       - key: POSTGRES_HOST
-        sync: false
+        value: rahatutt
       - key: POSTGRES_PORT
-        value: "5432"
+        value: "5433"
       - key: POSTGRES_DB
-        sync: false
+        value: IuTQbank
       - key: POSTGRES_USER
-        sync: false
+        value: StUdent
       - key: POSTGRES_PASSWORD
         sync: false
       # ── Qdrant Cloud (set in Render dashboard as secrets) ───────────────────
       - key: QDRANT_HOST
-        sync: false
+        value: haruta
       - key: QDRANT_PORT
         value: "6333"
       - key: QDRANT_API_KEY

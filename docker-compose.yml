@@ -4,21 +4,25 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-qbank}
-      POSTGRES_USER: ${POSTGRES_USER:-qbank}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-IuTQbank}
+      POSTGRES_USER: ${POSTGRES_USER:-StUdent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-PorashunaFaul123}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qbank} -d ${POSTGRES_DB:-qbank}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-StUdent} -d ${POSTGRES_DB:-IuTQbank}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # Local Qdrant — only used when QDRANT_HOST=localhost (dev without cloud).
+  # Start with: docker compose --profile local-qdrant up
+  # Production uses Qdrant Cloud (haruta) via QDRANT_HOST + QDRANT_API_KEY env vars.
   qdrant:
     image: qdrant/qdrant:v1.19.1
+    profiles: [local-qdrant]
     ports:
       - "${QDRANT_PORT:-6333}:6333"
       - "6334:6334"   # gRPC

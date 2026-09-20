@@ -1,15 +1,13 @@
 # Development overrides — applied automatically when running `docker compose up`
 # Exposes all ports locally for development debugging.
+# Note: Qdrant runs in Qdrant Cloud (haruta). To run Qdrant locally instead:
+#   docker compose --profile local-qdrant up
 name: iut-qbank
 
 services:
   postgres:
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-  qdrant:
-    ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "${POSTGRES_PORT:-5433}:5432"
   minio:
     ports:
       - "9000:9000"
