@@ -30,7 +30,7 @@ services:
         sync: false
       # ── Qdrant Cloud (set in Render dashboard as secrets) ───────────────────
       - key: QDRANT_HOST
-        value: haruta
+        value: https://c958d2e9-fce5-4d5a-9234-54e56378007e.ca-central-1-0.aws.cloud.qdrant.io
       - key: QDRANT_PORT
         value: "6333"
       - key: QDRANT_API_KEY
