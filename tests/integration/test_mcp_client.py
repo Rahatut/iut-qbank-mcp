@@ -7,6 +7,7 @@ Tests that a simulated MCP AI client can:
 4. Read resource templates (e.g. course://CSE4105/past-papers)
 5. Receive structured provenance answers.
 """
+
 from __future__ import annotations
 
 import pytest

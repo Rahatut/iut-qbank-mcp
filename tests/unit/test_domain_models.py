@@ -1,4 +1,5 @@
 """Unit tests for domain models. DEV-004, DEV-006, DEV-045."""
+
 import dataclasses
 
 import pytest

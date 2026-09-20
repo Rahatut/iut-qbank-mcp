@@ -1,4 +1,5 @@
 """Placeholder — replace with real tests as modules are implemented."""
+
 import os
 
 import pytest
@@ -30,4 +31,4 @@ def test_postgres_dsn_format() -> None:
 
     dsn = get_settings().postgres_dsn
     assert dsn.startswith("postgresql+asyncpg://")
-    assert "qbank" in dsn
+    assert "qbank" in dsn.lower()

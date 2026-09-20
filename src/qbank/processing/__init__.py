@@ -7,6 +7,7 @@ Exposes:
     RuleBasedMetadataExtractor, RuleBasedClassifier, QuestionPaperChunker,
     SentenceTransformerProvider
 """
+
 from qbank.processing.chunker import QuestionData, QuestionPaperChunker
 from qbank.processing.classifier import RuleBasedClassifier
 from qbank.processing.embedding import SentenceTransformerProvider
@@ -30,20 +31,20 @@ from qbank.processing.ocr import TesseractOCRProcessor
 __all__ = [
     # Data structures
     "ChunkData",
-    "ExtractedDocument",
-    "NormalizedMetadata",
-    "PageText",
-    "QuestionData",
     # Interfaces
     "Chunker",
     "Classifier",
     "EmbeddingProvider",
+    "ExtractedDocument",
     "ExtractionChecker",
     "Extractor",
     "MetadataExtractor",
+    "NormalizedMetadata",
     "OCRProcessor",
+    "PageText",
     # Implementations
     "PyMuPDFExtractor",
+    "QuestionData",
     "QuestionPaperChunker",
     "RuleBasedClassifier",
     "RuleBasedMetadataExtractor",

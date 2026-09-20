@@ -3,6 +3,7 @@
 All settings are loaded from environment variables.
 No secrets or configuration is hardcoded in source.
 """
+
 from __future__ import annotations
 
 import os
@@ -71,12 +72,8 @@ class Settings(BaseSettings):
     storage_secret_key: str | None = Field(default=None, alias="STORAGE_SECRET_KEY")
 
     # ── Embedding ─────────────────────────────────────────────────────────────
-    embedding_provider: str = Field(
-        default="sentence_transformers", alias="EMBEDDING_PROVIDER"
-    )
-    embedding_model: str = Field(
-        default="BAAI/bge-small-en-v1.5", alias="EMBEDDING_MODEL"
-    )
+    embedding_provider: str = Field(default="sentence_transformers", alias="EMBEDDING_PROVIDER")
+    embedding_model: str = Field(default="BAAI/bge-small-en-v1.5", alias="EMBEDDING_MODEL")
     embedding_dimension: int = Field(default=384, alias="EMBEDDING_DIMENSION")
     embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
 

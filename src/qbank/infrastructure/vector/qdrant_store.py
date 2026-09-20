@@ -5,6 +5,7 @@ Manages the iut_qbank_chunks_v1 collection with:
   - Rich payload for metadata filtering
   - Index versioning support (DEV-024)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from qbank.infrastructure.config import get_settings
 
 # ── Payload schema ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ChunkPayload:
     """Metadata stored alongside each vector in Qdrant.
@@ -34,6 +36,7 @@ class ChunkPayload:
     Matches the payload schema defined in DEV-009.
     All fields are also indexed for metadata filtering (DEV-027).
     """
+
     chunk_id: str
     document_id: str
     version_id: str
@@ -47,7 +50,7 @@ class ChunkPayload:
     question_number: str | None
     source_type: str
     language: str
-    text: str                       # stored for result formatting
+    text: str  # stored for result formatting
     document_title: str = ""
     document_url: str = ""
     tenant_id: str = "IUT"
@@ -59,6 +62,7 @@ class ChunkPayload:
 @dataclass
 class SearchFilter:
     """Structured filter for retrieval queries. DEV-027."""
+
     course_code: str | None = None
     department: str | None = None
     year_min: int | None = None
@@ -74,13 +78,9 @@ class SearchFilter:
         must.append(FieldCondition(key="tenant_id", match=MatchValue(value=self.tenant_id)))
 
         if self.course_code:
-            must.append(
-                FieldCondition(key="course_code", match=MatchValue(value=self.course_code))
-            )
+            must.append(FieldCondition(key="course_code", match=MatchValue(value=self.course_code)))
         if self.department:
-            must.append(
-                FieldCondition(key="department", match=MatchValue(value=self.department))
-            )
+            must.append(FieldCondition(key="department", match=MatchValue(value=self.department)))
         if self.semester:
             must.append(FieldCondition(key="semester", match=MatchValue(value=self.semester)))
         if self.document_type:
@@ -89,9 +89,7 @@ class SearchFilter:
             )
         if self.question_number:
             must.append(
-                FieldCondition(
-                    key="question_number", match=MatchValue(value=self.question_number)
-                )
+                FieldCondition(key="question_number", match=MatchValue(value=self.question_number))
             )
         if self.year_min is not None or self.year_max is not None:
             must.append(
@@ -112,6 +110,7 @@ class SearchFilter:
 @dataclass
 class SearchResult:
     """Standardized result from a retrieval query. DEV-028."""
+
     id: str
     text: str
     score: float
@@ -147,6 +146,7 @@ class SearchResult:
 
 
 # ── Qdrant client wrapper ─────────────────────────────────────────────────────
+
 
 class QdrantStore:
     """Manages Qdrant operations for the qbank collection.
@@ -244,7 +244,9 @@ class QdrantStore:
         )
         return [SearchResult.from_scored_point(r) for r in response.points]
 
-    async def retrieve_by_id(self, point_id: str, collection: str | None = None) -> SearchResult | None:
+    async def retrieve_by_id(
+        self, point_id: str, collection: str | None = None
+    ) -> SearchResult | None:
         """Retrieve a single point by ID from Qdrant."""
         name = collection or self._collection
         try:

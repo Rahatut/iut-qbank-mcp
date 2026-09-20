@@ -1,4 +1,5 @@
 """Alembic environment configuration. DEV-007."""
+
 from logging.config import fileConfig
 
 from alembic import context

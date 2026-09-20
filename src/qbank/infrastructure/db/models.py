@@ -14,6 +14,7 @@ Tables:
     sync_runs
     processing_jobs
 """
+
 from __future__ import annotations
 
 import uuid
@@ -46,12 +47,11 @@ def _uuid() -> str:
 
 # ── departments ───────────────────────────────────────────────────────────────
 
+
 class DepartmentRow(Base):
     __tablename__ = "departments"
 
-    department_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    department_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     code: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     tenant_id: Mapped[str] = mapped_column(String(50), nullable=False, default="IUT")
@@ -61,28 +61,24 @@ class DepartmentRow(Base):
 
     courses: Mapped[list[CourseRow]] = relationship("CourseRow", back_populates="department")
 
-    __table_args__ = (
-        Index("ix_departments_tenant_code", "tenant_id", "code"),
-    )
+    __table_args__ = (Index("ix_departments_tenant_code", "tenant_id", "code"),)
 
 
 # ── courses ───────────────────────────────────────────────────────────────────
 
+
 class CourseRow(Base):
     """Canonical courses. Aliases stored as a PostgreSQL text array. DEV-005."""
+
     __tablename__ = "courses"
 
-    course_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    course_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     course_code: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     department_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=False), ForeignKey("departments.department_id"), nullable=True
     )
-    aliases: Mapped[list[str]] = mapped_column(
-        ARRAY(String), nullable=False, server_default="{}"
-    )
+    aliases: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, server_default="{}")
     tenant_id: Mapped[str] = mapped_column(String(50), nullable=False, default="IUT")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -104,12 +100,11 @@ class CourseRow(Base):
 
 # ── sources ───────────────────────────────────────────────────────────────────
 
+
 class SourceRow(Base):
     __tablename__ = "sources"
 
-    source_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    source_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     source_type: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     base_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
@@ -128,12 +123,11 @@ class SourceRow(Base):
 
 # ── documents ─────────────────────────────────────────────────────────────────
 
+
 class DocumentRow(Base):
     __tablename__ = "documents"
 
-    document_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    document_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     source_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("sources.source_id"), nullable=False
     )
@@ -178,13 +172,13 @@ class DocumentRow(Base):
 
 # ── document_versions ─────────────────────────────────────────────────────────
 
+
 class DocumentVersionRow(Base):
     """Tracks each unique version of a document by content hash. DEV-012."""
+
     __tablename__ = "document_versions"
 
-    version_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    version_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     document_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("documents.document_id"), nullable=False
     )
@@ -214,13 +208,13 @@ class DocumentVersionRow(Base):
 
 # ── document_chunks ───────────────────────────────────────────────────────────
 
+
 class DocumentChunkRow(Base):
     """Segments of text indexed in Qdrant. DEV-020."""
+
     __tablename__ = "document_chunks"
 
-    chunk_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    chunk_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     document_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("documents.document_id"), nullable=False
     )
@@ -249,13 +243,13 @@ class DocumentChunkRow(Base):
 
 # ── questions ─────────────────────────────────────────────────────────────────
 
+
 class QuestionRow(Base):
     """Structured questions extracted from chunks. DEV-021."""
+
     __tablename__ = "questions"
 
-    question_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    question_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     chunk_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("document_chunks.chunk_id"), nullable=False
     )
@@ -287,13 +281,13 @@ class QuestionRow(Base):
 
 # ── sync_runs ─────────────────────────────────────────────────────────────────
 
+
 class SyncRunRow(Base):
     """Tracks each synchronization run from a source. DEV-013."""
+
     __tablename__ = "sync_runs"
 
-    run_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    run_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     source_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("sources.source_id"), nullable=False
     )
@@ -318,13 +312,13 @@ class SyncRunRow(Base):
 
 # ── processing_jobs ───────────────────────────────────────────────────────────
 
+
 class ProcessingJobRow(Base):
     """Tracks per-document processing state for retries and monitoring."""
+
     __tablename__ = "processing_jobs"
 
-    job_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), primary_key=True, default=_uuid
-    )
+    job_id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     version_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("document_versions.version_id"), nullable=False
     )

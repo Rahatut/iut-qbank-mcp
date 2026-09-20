@@ -1,4 +1,5 @@
 """Worker entrypoint — background processing worker."""
+
 from __future__ import annotations
 
 

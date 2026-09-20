@@ -1,4 +1,5 @@
 """Async SQLAlchemy engine and session factory."""
+
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import (

@@ -18,6 +18,7 @@ Pipeline V1:
 
 Future extensions (BM25 hybrid, reranking) slot in here without touching MCP.
 """
+
 from __future__ import annotations
 
 import logging
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 # ── Query DTOs ────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class SearchQuery:
     """All parameters for a retrieval request. DEV-026, DEV-027.
@@ -42,6 +44,7 @@ class SearchQuery:
     The MCP layer constructs this from tool arguments and passes it
     to RetrievalService. Nothing search-specific leaks into the MCP layer.
     """
+
     query: str
     course_code: str | None = None
     department: str | None = None
@@ -70,6 +73,7 @@ class SearchQuery:
 @dataclass
 class PastPapersQuery:
     """Query for listing past papers (non-semantic). DEV-032."""
+
     course_code: str
     year_min: int | None = None
     year_max: int | None = None
@@ -79,6 +83,7 @@ class PastPapersQuery:
 
 
 # ── Service ───────────────────────────────────────────────────────────────────
+
 
 class RetrievalService:
     """Central retrieval service. Thin orchestration layer.
@@ -206,9 +211,7 @@ class RetrievalService:
             )
         )
 
-    async def get_course_syllabus(
-        self, course_code: str
-    ) -> list[SearchResult]:
+    async def get_course_syllabus(self, course_code: str) -> list[SearchResult]:
         """Retrieve syllabus documents for a course. DEV-034."""
         return await self.search(
             SearchQuery(

@@ -20,6 +20,7 @@ Pipeline:
      ↓
     switch QDRANT_ACTIVE_COLLECTION in .env (or print new value)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,8 +61,7 @@ async def load_chunks_from_db(
 
     logger.info("Loading chunks from PostgreSQL …")
     result = await session.execute(
-        select(DocumentChunkRow)
-        .options(joinedload(DocumentChunkRow.document))  # type: ignore[attr-defined]
+        select(DocumentChunkRow).options(joinedload(DocumentChunkRow.document))  # type: ignore[attr-defined]
     )
     rows = result.unique().scalars().all()
     logger.info("Found %d chunks in database", len(rows))
@@ -69,28 +69,30 @@ async def load_chunks_from_db(
     chunks = []
     for row in rows:
         doc = row.document
-        chunks.append((
-            row.chunk_id,
-            row.text,
-            {
-                "document_id": row.document_id,
-                "version_id": row.version_id,
-                "course_id": doc.course_id if doc else None,
-                "course_code": doc.course_code if doc else None,
-                "department": doc.department if doc else None,
-                "year": doc.year if doc else None,
-                "semester": doc.semester if doc else None,
-                "document_type": doc.document_type if doc else "other",
-                "page": row.page,
-                "question_number": row.question_number,
-                "source_type": "dspace",
-                "language": doc.language if doc else "en",
-                "text": row.text,
-                "document_title": doc.title if doc else "",
-                "document_url": doc.document_url if doc else "",
-                "tenant_id": doc.tenant_id if doc else "IUT",
-            },
-        ))
+        chunks.append(
+            (
+                row.chunk_id,
+                row.text,
+                {
+                    "document_id": row.document_id,
+                    "version_id": row.version_id,
+                    "course_id": doc.course_id if doc else None,
+                    "course_code": doc.course_code if doc else None,
+                    "department": doc.department if doc else None,
+                    "year": doc.year if doc else None,
+                    "semester": doc.semester if doc else None,
+                    "document_type": doc.document_type if doc else "other",
+                    "page": row.page,
+                    "question_number": row.question_number,
+                    "source_type": "dspace",
+                    "language": doc.language if doc else "en",
+                    "text": row.text,
+                    "document_title": doc.title if doc else "",
+                    "document_url": doc.document_url if doc else "",
+                    "tenant_id": doc.tenant_id if doc else "IUT",
+                },
+            )
+        )
     return chunks
 
 
@@ -191,16 +193,12 @@ async def rebuild(
 
     logger.info("=" * 60)
     logger.info("Index rebuild complete.")
-    logger.info(
-        "To activate: set QDRANT_ACTIVE_COLLECTION=%s in your .env", target_collection
-    )
+    logger.info("To activate: set QDRANT_ACTIVE_COLLECTION=%s in your .env", target_collection)
     logger.info("=" * 60)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Rebuild the IUT QBank Qdrant index. DEV-025."
-    )
+    parser = argparse.ArgumentParser(description="Rebuild the IUT QBank Qdrant index. DEV-025.")
     settings = get_settings()
     parser.add_argument(
         "--collection",

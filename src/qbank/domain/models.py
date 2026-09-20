@@ -8,6 +8,7 @@ Hierarchy:
 
 DEV-004, DEV-006
 """
+
 from __future__ import annotations
 
 import uuid
@@ -20,10 +21,13 @@ from typing import Any
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
+
 # ── Enumerations ──────────────────────────────────────────────────────────────
+
 
 class DocumentType(StrEnum):
     """Broad classification of a document's purpose. See DEV-018."""
+
     QUESTION_PAPER = "question_paper"
     SYLLABUS = "syllabus"
     LECTURE_MATERIAL = "lecture_material"
@@ -34,9 +38,10 @@ class DocumentType(StrEnum):
 
 class ExtractionMethod(StrEnum):
     """How text was extracted from a PDF. See DEV-014, DEV-015."""
-    NATIVE = "native"       # PyMuPDF text layer
-    OCR = "ocr"             # Tesseract
-    HYBRID = "hybrid"       # Some pages native, some OCR
+
+    NATIVE = "native"  # PyMuPDF text layer
+    OCR = "ocr"  # Tesseract
+    HYBRID = "hybrid"  # Some pages native, some OCR
     FAILED = "failed"
 
 
@@ -48,6 +53,7 @@ class ExtractionStatus(StrEnum):
 
 class SyncStatus(StrEnum):
     """Status of a document as determined by incremental sync. See DEV-012."""
+
     NEW = "new"
     CHANGED = "changed"
     UNCHANGED = "unchanged"
@@ -78,11 +84,13 @@ class SourceType(StrEnum):
 
 # ── Value Objects ─────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class CourseRef:
     """Immutable reference to a canonical course. See DEV-005."""
+
     course_id: str
-    course_code: str          # canonical form e.g. "CSE3101"
+    course_code: str  # canonical form e.g. "CSE3101"
     title: str = ""
     department: str = ""
 
@@ -94,6 +102,7 @@ class Provenance:
     Every chunk/question must carry full provenance traceable back to:
       source → document → document_version → page → chunk
     """
+
     source_id: str
     source_type: SourceType
     source_url: str
@@ -112,21 +121,24 @@ class Provenance:
 
 # ── Aggregate Roots ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class Department:
     """An academic department. Root of the course hierarchy."""
+
     department_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    code: str = ""              # e.g. "CSE"
-    name: str = ""              # e.g. "Computer Science and Engineering"
-    tenant_id: str = "IUT"     # DEV-052 multi-university readiness
+    code: str = ""  # e.g. "CSE"
+    name: str = ""  # e.g. "Computer Science and Engineering"
+    tenant_id: str = "IUT"  # DEV-052 multi-university readiness
     created_at: datetime = field(default_factory=_utcnow)
 
 
 @dataclass
 class Course:
     """A canonical academic course. See DEV-005 for normalization rules."""
+
     course_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    course_code: str = ""       # canonical e.g. "CSE3101"
+    course_code: str = ""  # canonical e.g. "CSE3101"
     title: str = ""
     department_id: str = ""
     aliases: list[str] = field(default_factory=list)  # "CSE 3101", "CSE-3101"
@@ -141,6 +153,7 @@ class Source:
 
     Examples: IUT DSpace, GitHub repo, upload endpoint.
     """
+
     source_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     source_type: SourceType = SourceType.DSPACE
     name: str = ""
@@ -159,15 +172,16 @@ class Document:
 
     A document may have multiple versions over time (see DocumentVersion).
     """
+
     document_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     source_id: str = ""
-    remote_id: str = ""         # DSpace item UUID or similar
+    remote_id: str = ""  # DSpace item UUID or similar
     title: str = ""
     document_url: str = ""
     original_filename: str | None = None
     document_type: DocumentType = DocumentType.OTHER
     course_id: str | None = None
-    course_code: str | None = None   # denormalized for query performance
+    course_code: str | None = None  # denormalized for query performance
     department: str | None = None
     year: int | None = None
     semester: Semester | None = None
@@ -184,11 +198,12 @@ class DocumentVersion:
 
     Enables incremental sync (DEV-012): only changed documents are re-processed.
     """
+
     version_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     document_id: str = ""
-    version_hash: str = ""          # SHA-256 of raw file content
+    version_hash: str = ""  # SHA-256 of raw file content
     file_size_bytes: int = 0
-    storage_key: str = ""           # path/key in object storage (DEV-010)
+    storage_key: str = ""  # path/key in object storage (DEV-010)
     extraction_status: ExtractionStatus = ExtractionStatus.PENDING
     extraction_method: ExtractionMethod | None = None
     text_quality_score: float | None = None  # 0.0-1.0, DEV-015
@@ -205,11 +220,12 @@ class Chunk:
     Chunks are the unit indexed in Qdrant (DEV-009, DEV-020).
     Each carries full provenance (DEV-006).
     """
+
     chunk_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     document_id: str = ""
     version_id: str = ""
     page: int | None = None
-    chunk_index: int = 0        # position within the document
+    chunk_index: int = 0  # position within the document
     text: str = ""
     token_count: int = 0
     question_number: str | None = None  # e.g. "3", "3a", "Q3(b)"
@@ -223,11 +239,12 @@ class Question:
 
     Exists alongside generic chunks — see DEV-021.
     """
+
     question_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     chunk_id: str = ""
     document_id: str = ""
     version_id: str = ""
-    question_number: str = ""     # e.g. "3(a)"
+    question_number: str = ""  # e.g. "3(a)"
     text: str = ""
     marks: int | None = None
     page: int | None = None
@@ -241,14 +258,16 @@ class Question:
 
 # ── Sync Tracking ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class SyncRun:
     """Records a single synchronization run from a Source. DEV-013."""
+
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     source_id: str = ""
     started_at: datetime = field(default_factory=_utcnow)
     finished_at: datetime | None = None
-    status: str = "running"         # running | completed | failed
+    status: str = "running"  # running | completed | failed
     documents_discovered: int = 0
     documents_downloaded: int = 0
     documents_skipped: int = 0

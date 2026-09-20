@@ -9,6 +9,7 @@ This package must remain independent of:
   - FastMCP
   - any infrastructure library
 """
+
 from qbank.domain.course_normalization import (
     CourseCodeIndex,
     codes_are_equivalent,
@@ -17,6 +18,7 @@ from qbank.domain.course_normalization import (
 from qbank.domain.models import (
     Chunk,
     Course,
+    CourseRef,
     Department,
     Document,
     DocumentType,
@@ -47,9 +49,9 @@ __all__ = [
     "Chunk",
     "ChunkRepository",
     "Course",
-    "CourseRepository",
     "CourseCodeIndex",
     "CourseRef",
+    "CourseRepository",
     "Department",
     "Document",
     "DocumentRepository",

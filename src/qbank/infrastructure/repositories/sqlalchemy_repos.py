@@ -9,6 +9,7 @@ Hierarchy:
         ↓
     infrastructure/repositories/sqlalchemy_repos.py (this file)
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -53,6 +54,7 @@ from qbank.infrastructure.db.models import (
 )
 
 # ── Mapping helpers ───────────────────────────────────────────────────────────
+
 
 def _row_to_source(row: SourceRow) -> Source:
     return Source(
@@ -99,7 +101,9 @@ def _row_to_version(row: DocumentVersionRow) -> DocumentVersion:
         file_size_bytes=row.file_size_bytes,
         storage_key=row.storage_key,
         extraction_status=ExtractionStatus(row.extraction_status),
-        extraction_method=ExtractionMethod(row.extraction_method) if row.extraction_method else None,
+        extraction_method=ExtractionMethod(row.extraction_method)
+        if row.extraction_method
+        else None,
         text_quality_score=row.text_quality_score,
         page_count=row.page_count,
         created_at=row.created_at,
@@ -170,6 +174,7 @@ def _row_to_sync_run(row: SyncRunRow) -> SyncRun:
 
 # ── Repository implementations ────────────────────────────────────────────────
 
+
 class SqlSourceRepository(SourceRepository):
     """SQLAlchemy async implementation of SourceRepository."""
 
@@ -181,9 +186,7 @@ class SqlSourceRepository(SourceRepository):
         return _row_to_source(row) if row else None
 
     async def get_all_active(self) -> Sequence[Source]:
-        result = await self._session.execute(
-            select(SourceRow).where(SourceRow.is_active.is_(True))
-        )
+        result = await self._session.execute(select(SourceRow).where(SourceRow.is_active.is_(True)))
         return [_row_to_source(r) for r in result.scalars().all()]
 
     async def save(self, source: Source) -> None:
@@ -338,9 +341,7 @@ class SqlDocumentVersionRepository(DocumentVersionRepository):
         row = result.scalar_one_or_none()
         return _row_to_version(row) if row else None
 
-    async def get_by_hash(
-        self, document_id: str, version_hash: str
-    ) -> DocumentVersion | None:
+    async def get_by_hash(self, document_id: str, version_hash: str) -> DocumentVersion | None:
         result = await self._session.execute(
             select(DocumentVersionRow).where(
                 DocumentVersionRow.document_id == document_id,
@@ -371,9 +372,7 @@ class SqlDocumentVersionRepository(DocumentVersionRepository):
                     storage_key=version.storage_key,
                     extraction_status=version.extraction_status.value,
                     extraction_method=(
-                        version.extraction_method.value
-                        if version.extraction_method
-                        else None
+                        version.extraction_method.value if version.extraction_method else None
                     ),
                     text_quality_score=version.text_quality_score,
                     page_count=version.page_count,
@@ -510,6 +509,7 @@ class SqlCourseRepository(CourseRepository):
     async def search_by_alias(self, raw_code: str) -> Course | None:
         """Search courses by alias using PostgreSQL array contains."""
         from sqlalchemy import any_ as sa_any_
+
         result = await self._session.execute(
             select(CourseRow).where(
                 raw_code == sa_any_(CourseRow.aliases)  # type: ignore[arg-type]

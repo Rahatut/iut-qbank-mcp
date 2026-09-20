@@ -5,6 +5,7 @@ and injects the RetrievalService into MCP tool handlers.
 
 The container is built once at server startup and torn down on shutdown.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AppContainer:
     """Holds all application-wide singletons for injection into MCP tools."""
+
     settings: Settings
     embedding_provider: EmbeddingProvider
     qdrant_store: QdrantStore
@@ -86,8 +88,7 @@ def get_container() -> AppContainer:
     """Return the current application container. Raises if not initialised."""
     if _container is None:
         raise RuntimeError(
-            "Application container is not initialised. "
-            "Ensure the MCP server lifespan has started."
+            "Application container is not initialised. Ensure the MCP server lifespan has started."
         )
     return _container
 
@@ -126,8 +127,7 @@ async def lifespan() -> AsyncIterator[AppContainer]:
         logger.info("Qdrant collection ready: %s", qdrant_store.collection)
     except Exception as exc:
         logger.warning(
-            "Could not reach Qdrant at startup: %s. "
-            "Search will fail until Qdrant is available.",
+            "Could not reach Qdrant at startup: %s. Search will fail until Qdrant is available.",
             exc,
         )
 

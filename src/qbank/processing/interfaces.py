@@ -12,6 +12,7 @@ Each stage of the pipeline is independently replaceable:
 
 No stage depends on another's implementation — only on its interface.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -19,21 +20,24 @@ from dataclasses import dataclass
 
 # ── Shared data structures ────────────────────────────────────────────────────
 
+
 @dataclass
 class PageText:
     """Text extracted from a single PDF page."""
-    page_number: int        # 1-indexed
+
+    page_number: int  # 1-indexed
     text: str
     extraction_method: str  # "native" | "ocr"
-    quality_score: float    # 0.0-1.0
+    quality_score: float  # 0.0-1.0
 
 
 @dataclass
 class ExtractedDocument:
     """Result of running Extractor + OCRProcessor on a PDF."""
+
     pages: list[PageText]
-    extraction_method: str   # "native" | "ocr" | "hybrid" | "failed"
-    overall_quality: float   # 0.0-1.0
+    extraction_method: str  # "native" | "ocr" | "hybrid" | "failed"
+    overall_quality: float  # 0.0-1.0
     page_count: int
 
     @property
@@ -44,19 +48,21 @@ class ExtractedDocument:
 @dataclass
 class NormalizedMetadata:
     """Metadata extracted and normalized for a document. DEV-017."""
+
     course_code: str | None = None
     department: str | None = None
     year: int | None = None
     semester: str | None = None
-    exam_type: str | None = None        # "final", "midterm", "quiz"
+    exam_type: str | None = None  # "final", "midterm", "quiz"
     document_type: str | None = None
     language: str | None = None
-    confidence: float = 0.0             # 0.0-1.0; do not require perfect before indexing
+    confidence: float = 0.0  # 0.0-1.0; do not require perfect before indexing
 
 
 @dataclass
 class ChunkData:
     """A single chunk produced by the Chunker. DEV-019, DEV-020."""
+
     text: str
     page: int | None
     chunk_index: int
@@ -65,6 +71,7 @@ class ChunkData:
 
 
 # ── Stage interfaces ──────────────────────────────────────────────────────────
+
 
 class Extractor(ABC):
     """Extracts text from a PDF. DEV-014.

@@ -10,6 +10,7 @@ Examples:
     "cse3101"  → "CSE3101"
     "cse 3101" → "CSE3101"
 """
+
 from __future__ import annotations
 
 import re
@@ -17,10 +18,10 @@ from dataclasses import dataclass, field
 
 # Matches: optional prefix letters, optional separator, digits, optional suffix
 _COURSE_PATTERN = re.compile(
-    r"^([A-Za-z]+)"        # department prefix  e.g. CSE, EEE, PHY
-    r"[\s\-_]?"            # optional separator
-    r"(\d{3,4})"           # course number      e.g. 3101, 101
-    r"([A-Za-z]?)$"        # optional suffix    e.g. L (lab)
+    r"^([A-Za-z]+)"  # department prefix  e.g. CSE, EEE, PHY
+    r"[\s\-_]?"  # optional separator
+    r"(\d{3,4})"  # course number      e.g. 3101, 101
+    r"([A-Za-z]?)$"  # optional suffix    e.g. L (lab)
 )
 
 
@@ -55,6 +56,7 @@ class CourseCodeIndex:
 
     Populated from the courses table at startup (or lazily).
     """
+
     # canonical_code → course_id
     _canonical_to_id: dict[str, str] = field(default_factory=dict, repr=False)
     # any raw alias → canonical code

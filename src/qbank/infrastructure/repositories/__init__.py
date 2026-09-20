@@ -1,4 +1,5 @@
 """Repository package exports."""
+
 from qbank.infrastructure.repositories.sqlalchemy_repos import (
     SqlChunkRepository,
     SqlCourseRepository,

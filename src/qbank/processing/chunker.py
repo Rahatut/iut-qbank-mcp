@@ -12,6 +12,7 @@ Architecture:
    ├── generic chunks  (ChunkData)
    └── structured questions (QuestionData) — DEV-021
 """
+
 from __future__ import annotations
 
 import re
@@ -54,7 +55,8 @@ class QuestionData:
        ├── generic chunks
        └── structured questions
     """
-    question_number: str          # e.g. "1", "3(a)", "Q4"
+
+    question_number: str  # e.g. "1", "3(a)", "Q4"
     text: str
     page: int | None
     chunk_index: int
@@ -127,9 +129,7 @@ class QuestionPaperChunker(Chunker):
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    def _chunk_page(
-        self, text: str, page_number: int, start_index: int
-    ) -> list[ChunkData]:
+    def _chunk_page(self, text: str, page_number: int, start_index: int) -> list[ChunkData]:
         chunks, _ = self._chunk_page_with_questions(text, page_number, start_index)
         return chunks
 

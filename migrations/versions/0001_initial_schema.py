@@ -7,6 +7,7 @@ Creates all V1 tables:
 Generated manually (no live DB at generation time).
 Revision: 0001_initial_schema
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa

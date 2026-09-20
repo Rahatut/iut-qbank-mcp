@@ -10,6 +10,7 @@ Tests the complete flow against real services (PostgreSQL + Qdrant):
 7. Query via RetrievalService
 8. Verify result schema, metadata, and provenance
 """
+
 from __future__ import annotations
 
 import uuid
@@ -30,6 +31,7 @@ from qbank.domain.models import (
     SourceType,
 )
 from qbank.infrastructure.db.engine import make_engine, make_session_factory
+from qbank.infrastructure.db.models import Base
 from qbank.infrastructure.repositories import (
     SqlChunkRepository,
     SqlDocumentRepository,
@@ -102,6 +104,8 @@ async def test_end_to_end_ingestion_and_retrieval() -> None:
 
     # 5. Persist to PostgreSQL
     engine = make_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     session_factory = make_session_factory(engine)
 
     doc_id = str(uuid.uuid4())

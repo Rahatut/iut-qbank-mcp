@@ -1,4 +1,5 @@
 """Unit tests for course code normalization. DEV-005, DEV-045."""
+
 import pytest
 
 from qbank.domain.course_normalization import (

@@ -4,6 +4,7 @@ Page-level OCR for scanned question papers.
 Preserves page numbers, records OCR status.
 Failed pages are retryable (ProcessingJobRow.attempt).
 """
+
 from __future__ import annotations
 
 import io

@@ -55,9 +55,14 @@ jobs:
         ports:
           - 5432:5432
       qdrant:
-        image: qdrant/qdrant:v1.9.4
+        image: qdrant/qdrant:v1.19.1
         ports:
           - 6333:6333
+        options: >-
+          --health-cmd "bash -c 'cat < /dev/null > /dev/tcp/localhost/6333'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,6 +70,14 @@ jobs:
           python-version: "3.12"
           cache: "pip"
       - run: pip install -e ".[dev]"
+      - name: Run database migrations
+        run: alembic upgrade head
+        env:
+          APP_ENV: test
+          POSTGRES_HOST: localhost
+          POSTGRES_DB: qbank_test
+          POSTGRES_USER: qbank
+          POSTGRES_PASSWORD: qbank
       - run: pytest tests/integration -m integration -v
         env:
           APP_ENV: test
@@ -73,3 +86,4 @@ jobs:
           POSTGRES_USER: qbank
           POSTGRES_PASSWORD: qbank
           QDRANT_HOST: localhost
+          QDRANT_ACTIVE_COLLECTION: iut_qbank_chunks_v1

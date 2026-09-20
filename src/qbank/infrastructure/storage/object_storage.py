@@ -8,6 +8,7 @@ Implementations:
     S3Storage      — AWS S3 (future)
     MinIOStorage   — MinIO / S3-compatible (future)
 """
+
 from __future__ import annotations
 
 import hashlib

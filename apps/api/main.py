@@ -1,4 +1,5 @@
 """API Server entrypoint — REST API layer (future, see FB-018)."""
+
 from __future__ import annotations
 
 

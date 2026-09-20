@@ -6,6 +6,7 @@ Discovers communities → collections → items → bitstreams.
 DSpace 7 REST API reference:
     https://repository.iutoic-dhaka.edu/server/api
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DSpaceItem:
     """Raw DSpace item metadata before conversion to RemoteDocument."""
+
     uuid: str
     name: str
     handle: str
@@ -105,7 +107,8 @@ class DSpaceConnector(ContentSource):
         """
         async for item in self._iter_all_items():
             pdf_bitstreams = [
-                b for b in item.bitstreams
+                b
+                for b in item.bitstreams
                 if b.get("bundleName", "") == "ORIGINAL"
                 and b.get("name", "").lower().endswith(".pdf")
             ]
@@ -166,10 +169,7 @@ class DSpaceConnector(ContentSource):
         # Extract bitstreams from embedded bundles
         bitstreams: list[dict[str, Any]] = []
         bundles = (
-            dso.get("_embedded", {})
-            .get("bundles", {})
-            .get("_embedded", {})
-            .get("bundles", [])
+            dso.get("_embedded", {}).get("bundles", {}).get("_embedded", {}).get("bundles", [])
         )
         for bundle in bundles:
             bundle_name = bundle.get("name", "")
@@ -193,14 +193,10 @@ class DSpaceConnector(ContentSource):
             bitstreams=bitstreams,
         )
 
-    def _to_remote_document(
-        self, item: DSpaceItem, bitstream: dict[str, Any]
-    ) -> RemoteDocument:
+    def _to_remote_document(self, item: DSpaceItem, bitstream: dict[str, Any]) -> RemoteDocument:
         """Convert a DSpaceItem + bitstream into a RemoteDocument."""
         bs_uuid = bitstream.get("uuid", "")
-        download_url = (
-            f"{self._base_url}/server/api/core/bitstreams/{bs_uuid}/content"
-        )
+        download_url = f"{self._base_url}/server/api/core/bitstreams/{bs_uuid}/content"
         handle_url = f"{self._base_url}/handle/{item.handle}" if item.handle else ""
         checksum_info = bitstream.get("checkSum", {})
         checksum = checksum_info.get("value") if checksum_info else None
@@ -208,9 +204,7 @@ class DSpaceConnector(ContentSource):
         last_modified: datetime | None = None
         if item.last_modified:
             try:
-                last_modified = datetime.fromisoformat(
-                    item.last_modified.replace("Z", "+00:00")
-                )
+                last_modified = datetime.fromisoformat(item.last_modified.replace("Z", "+00:00"))
             except ValueError:
                 pass
 

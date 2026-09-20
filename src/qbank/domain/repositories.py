@@ -6,6 +6,7 @@ querying PostgreSQL. Infrastructure implementations live in:
 
 This keeps the domain and application layers independent of the ORM.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

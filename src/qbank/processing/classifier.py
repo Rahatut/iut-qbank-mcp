@@ -3,6 +3,7 @@
 Rule-based implementation — replaceable with an ML/LLM classifier
 without modifying the ingestion pipeline (DEV-050).
 """
+
 from __future__ import annotations
 
 import re
@@ -17,15 +18,9 @@ _SYLLABUS_SIGNALS = re.compile(
     r"\b(syllabus|course outline|learning outcomes?|credit hours?|prerequisites?)\b",
     re.IGNORECASE,
 )
-_LECTURE_SIGNALS = re.compile(
-    r"\b(lecture|slide|chapter|topic:)\b", re.IGNORECASE
-)
-_TUTORIAL_SIGNALS = re.compile(
-    r"\b(tutorial|lab manual|experiment|worksheet)\b", re.IGNORECASE
-)
-_ASSIGNMENT_SIGNALS = re.compile(
-    r"\b(assignment|homework|due date|submission)\b", re.IGNORECASE
-)
+_LECTURE_SIGNALS = re.compile(r"\b(lecture|slide|chapter|topic:)\b", re.IGNORECASE)
+_TUTORIAL_SIGNALS = re.compile(r"\b(tutorial|lab manual|experiment|worksheet)\b", re.IGNORECASE)
+_ASSIGNMENT_SIGNALS = re.compile(r"\b(assignment|homework|due date|submission)\b", re.IGNORECASE)
 
 
 class RuleBasedClassifier(Classifier):

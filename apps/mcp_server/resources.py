@@ -13,6 +13,7 @@ Resource URIs:
 
 Only URIs backed by real canonical entities are exposed (DEV-036).
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,10 +42,9 @@ def register_resources(mcp: FastMCP) -> None:
 
         # Fetch syllabus, materials, and recent papers concurrently
         import asyncio
+
         syllabus_task = container.retrieval_service.get_course_syllabus(course_code)
-        materials_task = container.retrieval_service.get_course_materials(
-            course_code, limit=5
-        )
+        materials_task = container.retrieval_service.get_course_materials(course_code, limit=5)
         papers_task = container.retrieval_service.get_past_papers(
             PastPapersQuery(course_code=course_code, limit=5)
         )
@@ -101,21 +101,21 @@ def register_resources(mcp: FastMCP) -> None:
         URI: course://CSE3101/materials
         """
         container = get_container()
-        results = await container.retrieval_service.get_course_materials(
-            course_code, limit=30
-        )
+        results = await container.retrieval_service.get_course_materials(course_code, limit=30)
         # Deduplicate by document_id
         seen: set[str] = set()
         docs: list[dict[str, Any]] = []
         for r in results:
             if r.document_id not in seen:
                 seen.add(r.document_id)
-                docs.append({
-                    "document_id": r.document_id,
-                    "title": r.document_title,
-                    "document_type": r.document_type,
-                    "url": r.document_url,
-                })
+                docs.append(
+                    {
+                        "document_id": r.document_id,
+                        "title": r.document_title,
+                        "document_type": r.document_type,
+                        "url": r.document_url,
+                    }
+                )
         return {
             "course_code": course_code,
             "materials": docs,

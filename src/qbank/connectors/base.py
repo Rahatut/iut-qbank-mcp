@@ -11,6 +11,7 @@ Connector hierarchy:
      ├── UploadConnector      (future DEV-049)
      └── GoogleDriveConnector (future DEV-049)
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -26,11 +27,12 @@ class RemoteDocument:
     Contains enough information to determine whether a download is needed
     (incremental sync, DEV-012).
     """
-    remote_id: str              # connector-specific identifier (e.g. DSpace UUID)
+
+    remote_id: str  # connector-specific identifier (e.g. DSpace UUID)
     title: str
-    document_url: str           # direct file download URL
-    handle_url: str = ""        # canonical landing page URL
-    checksum: str | None = None # remote checksum if available
+    document_url: str  # direct file download URL
+    handle_url: str = ""  # canonical landing page URL
+    checksum: str | None = None  # remote checksum if available
     last_modified: datetime | None = None
     file_size_bytes: int | None = None
     metadata: dict = field(default_factory=dict)
@@ -40,6 +42,7 @@ class RemoteDocument:
 @dataclass
 class ConnectorCapabilities:
     """Declares what a connector supports."""
+
     supports_incremental_sync: bool = True
     supports_checksum: bool = False
     supports_collections: bool = True

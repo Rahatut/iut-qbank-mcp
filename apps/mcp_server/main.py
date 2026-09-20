@@ -22,6 +22,7 @@ Transport:
 
 Do NOT add retrieval or business logic here.
 """
+
 from __future__ import annotations
 
 import logging

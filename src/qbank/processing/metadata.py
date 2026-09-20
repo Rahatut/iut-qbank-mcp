@@ -7,6 +7,7 @@ Layered extraction:
 Does not require perfect metadata before indexing.
 Retains confidence values for every field.
 """
+
 from __future__ import annotations
 
 import re

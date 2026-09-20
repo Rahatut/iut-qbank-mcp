@@ -1,4 +1,5 @@
 """Unit tests for the chunking engine. DEV-019, DEV-020, DEV-021."""
+
 from __future__ import annotations
 
 from qbank.processing.chunker import QuestionPaperChunker
@@ -92,10 +93,7 @@ class TestQuestionPaperChunker:
 
     def test_chunk_with_questions_returns_structured_questions(self) -> None:
         text = (
-            "1. What is a semaphore?\n"
-            "(a) Define it.\n"
-            "(b) Give an example.\n"
-            "2. Explain deadlock.\n"
+            "1. What is a semaphore?\n(a) Define it.\n(b) Give an example.\n2. Explain deadlock.\n"
         )
         doc = _make_doc((1, text))
         _chunks, questions = self.chunker.chunk_with_questions(doc)

@@ -7,6 +7,7 @@ Fallback chain:
 
 Does NOT OCR every document automatically.
 """
+
 from __future__ import annotations
 
 import logging
@@ -137,7 +138,7 @@ class PyMuPDFExtractor(Extractor):
         if needs_ocr_count == 0:
             method = "native"
         elif needs_ocr_count == len(pages):
-            method = "ocr_required"   # all pages need OCR
+            method = "ocr_required"  # all pages need OCR
         else:
             method = "hybrid_required"  # some pages need OCR
 

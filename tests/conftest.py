@@ -1,4 +1,5 @@
 """Global pytest fixtures and configuration."""
+
 from pathlib import Path
 
 from dotenv import load_dotenv

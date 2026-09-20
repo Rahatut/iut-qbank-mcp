@@ -5,6 +5,7 @@ All tools follow the architecture rule:
 
 No database or vector-search logic lives in this file.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,14 +48,36 @@ def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def search_questions(
-        query: Annotated[str, Field(description="Natural language search query, e.g. 'normalization in database systems'")],
-        course_code: Annotated[str | None, Field(description="Filter by course code, e.g. 'CSE3101'")] = None,
-        topic: Annotated[str | None, Field(description="Additional topic keyword to refine search")] = None,
-        year_from: Annotated[int | None, Field(description="Earliest year to include, e.g. 2020")] = None,
-        year_to: Annotated[int | None, Field(description="Latest year to include, e.g. 2025")] = None,
-        semester: Annotated[str | None, Field(description="Semester: Spring | Summer | Fall | Winter")] = None,
-        document_type: Annotated[str | None, Field(description="Document type: question_paper | syllabus | lecture_material | tutorial | assignment")] = None,
-        limit: Annotated[int, Field(description="Maximum number of results to return", ge=1, le=50)] = 10,
+        query: Annotated[
+            str,
+            Field(
+                description="Natural language search query, e.g. 'normalization in database systems'"
+            ),
+        ],
+        course_code: Annotated[
+            str | None, Field(description="Filter by course code, e.g. 'CSE3101'")
+        ] = None,
+        topic: Annotated[
+            str | None, Field(description="Additional topic keyword to refine search")
+        ] = None,
+        year_from: Annotated[
+            int | None, Field(description="Earliest year to include, e.g. 2020")
+        ] = None,
+        year_to: Annotated[
+            int | None, Field(description="Latest year to include, e.g. 2025")
+        ] = None,
+        semester: Annotated[
+            str | None, Field(description="Semester: Spring | Summer | Fall | Winter")
+        ] = None,
+        document_type: Annotated[
+            str | None,
+            Field(
+                description="Document type: question_paper | syllabus | lecture_material | tutorial | assignment"
+            ),
+        ] = None,
+        limit: Annotated[
+            int, Field(description="Maximum number of results to return", ge=1, le=50)
+        ] = 10,
     ) -> list[dict[str, Any]]:
         """Search for questions and content across IUT exam papers and course materials.
 
@@ -89,7 +112,9 @@ def register_tools(mcp: FastMCP) -> None:
         course_code: Annotated[str, Field(description="Course code, e.g. 'CSE4105'")],
         year_from: Annotated[int | None, Field(description="Earliest year, e.g. 2020")] = None,
         year_to: Annotated[int | None, Field(description="Latest year, e.g. 2025")] = None,
-        semester: Annotated[str | None, Field(description="Semester: Spring | Summer | Fall | Winter")] = None,
+        semester: Annotated[
+            str | None, Field(description="Semester: Spring | Summer | Fall | Winter")
+        ] = None,
         limit: Annotated[int, Field(description="Maximum papers to return", ge=1, le=50)] = 20,
     ) -> list[dict[str, Any]]:
         """Retrieve past examination papers for a course.
@@ -119,7 +144,10 @@ def register_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def get_course_materials(
         course_code: Annotated[str, Field(description="Course code, e.g. 'CSE3101'")],
-        material_type: Annotated[str | None, Field(description="Type: lecture_material | tutorial | assignment | syllabus")] = None,
+        material_type: Annotated[
+            str | None,
+            Field(description="Type: lecture_material | tutorial | assignment | syllabus"),
+        ] = None,
         limit: Annotated[int, Field(description="Maximum results to return", ge=1, le=50)] = 20,
     ) -> list[dict[str, Any]]:
         """Retrieve available learning materials for a course.
@@ -161,7 +189,12 @@ def register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def get_question(
-        question_id: Annotated[str, Field(description="The unique ID of the question/chunk (from a previous search result)")],
+        question_id: Annotated[
+            str,
+            Field(
+                description="The unique ID of the question/chunk (from a previous search result)"
+            ),
+        ],
     ) -> dict[str, Any] | None:
         """Retrieve a specific question or content chunk by its ID.
 

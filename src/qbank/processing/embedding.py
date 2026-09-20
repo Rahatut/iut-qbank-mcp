@@ -9,6 +9,7 @@ or any other provider without changing callers.
 Embedding pipeline (DEV-023):
     chunks → EmbeddingProvider → vectors → QdrantStore
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,13 +58,10 @@ class SentenceTransformerProvider(EmbeddingProvider):
                 )
                 if dim_getter:
                     self._dimension = dim_getter() or self._dimension
-                logger.info(
-                    "Embedding model loaded. Dimension: %d", self._dimension
-                )
+                logger.info("Embedding model loaded. Dimension: %d", self._dimension)
             except ImportError as exc:
                 raise RuntimeError(
-                    "sentence-transformers is not installed. "
-                    "Run: pip install sentence-transformers"
+                    "sentence-transformers is not installed. Run: pip install sentence-transformers"
                 ) from exc
         return self._model
 

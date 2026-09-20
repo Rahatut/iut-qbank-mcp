@@ -1,4 +1,5 @@
 """Unit tests for the retrieval service. DEV-026, DEV-027, DEV-028."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
