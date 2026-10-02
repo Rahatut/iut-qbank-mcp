@@ -29,21 +29,18 @@ _COURSE_PATTERN = re.compile(
 # A blocklist is used rather than an allowlist so that new or uncommon IUT
 # department codes (MAT, CIV, CHE, URP, MIS, MGT, ...) stay valid.
 _JUNK_PREFIXES = frozenset(
-    {
-        # English function / common words
-        "A", "AN", "AND", "ARE", "AS", "AT", "BE", "BY", "FOR", "FROM",
-        "IN", "INTO", "IS", "IT", "OF", "ON", "OR", "THE", "TO", "WITH",
-        # calendar and reference terms
-        "ABOUT", "APRIL", "AUG", "AUGUST", "DEC", "DECEMBER", "FEB", "FEBRUARY",
-        "FY", "JAN", "JANUARY", "JUL", "JULY", "JUN", "JUNE", "MAR", "MARCH",
-        "MAY", "MONTH", "NOV", "NOVEMBER", "OCT", "OCTOBER", "PAGES", "PP",
-        "SEP", "SEPT", "SEPTEMBER", "VOL", "YEAR",
-        # numbers masquerading as text
-        "AL", "NO", "NUM",
-        # publication / venue / tooling noise seen in theses
-        "ACL", "ARIK", "ARXIV", "DOI", "EMNLP", "IEEE", "ISBN", "ISSN",
-        "LREC", "NAACL", "PAKDD", "SINCE", "TRL", "TSD",
-    }
+    """
+    # English function / common words
+    A AN AND ARE AS AT BE BY FOR FROM IN INTO IS IT OF ON OR THE TO WITH
+    # calendar and reference terms
+    ABOUT APRIL AUG AUGUST DEC DECEMBER FEB FEBRUARY FY JAN JANUARY JUL JULY
+    JUN JUNE MAR MARCH MAY MONTH NOV NOVEMBER OCT OCTOBER PAGES PP SEP SEPT
+    SEPTEMBER VOL YEAR
+    # numbers masquerading as text
+    AL NO NUM
+    # publication / venue / tooling noise seen in theses
+    ACL ARIK ARXIV DOI EMNLP IEEE ISBN ISSN LREC NAACL PAKDD SINCE TRL TSD
+    """.split()
 )
 
 

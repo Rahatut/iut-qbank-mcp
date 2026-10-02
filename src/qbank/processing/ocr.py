@@ -109,9 +109,7 @@ class TesseractOCRProcessor(OCRProcessor):
             try:
                 image = extractor.get_page_image(pdf_bytes, page.page_number)
             except Exception as exc:
-                logger.error(
-                    "Could not render page %d for OCR: %s", page.page_number, exc
-                )
+                logger.error("Could not render page %d for OCR: %s", page.page_number, exc)
                 failed += 1
                 pages.append(page)
                 continue

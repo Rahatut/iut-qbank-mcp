@@ -11,9 +11,7 @@ if env_path.exists():
     load_dotenv(dotenv_path=env_path, override=True)
 
 
-def pytest_collection_modifyitems(
-    config: pytest.Config, items: list[pytest.Item]
-) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Derive a marker from the test directory.
 
     `make test-unit` selects with `-m unit`, but no test file declares

@@ -71,9 +71,7 @@ def register_resources(mcp: FastMCP) -> None:
                 for r in papers
             ],
             "syllabus_snippet": (
-                truncate_text(syllabus[0].text, MAX_SYLLABUS_SNIPPET_CHARS)[0]
-                if syllabus
-                else None
+                truncate_text(syllabus[0].text, MAX_SYLLABUS_SNIPPET_CHARS)[0] if syllabus else None
             ),
         }
 

@@ -258,9 +258,7 @@ async def _process_document(
     is_new_doc = existing_doc is None
 
     if existing_doc:
-        existing_version = await version_repo.get_by_hash(
-            existing_doc.document_id, version_hash
-        )
+        existing_version = await version_repo.get_by_hash(existing_doc.document_id, version_hash)
         if existing_version and existing_version.extraction_status == ExtractionStatus.SUCCEEDED:
             logger.info("  ↳ SKIPPED (unchanged, already processed)")
             stats.skipped += 1
@@ -290,9 +288,7 @@ async def _process_document(
     if existing_doc and actual_hash != version_hash:
         # connector.get_version returned a non-SHA256 value; re-check with
         # the real content hash so we don't duplicate work.
-        existing_version = await version_repo.get_by_hash(
-            existing_doc.document_id, actual_hash
-        )
+        existing_version = await version_repo.get_by_hash(existing_doc.document_id, actual_hash)
         if existing_version and existing_version.extraction_status == ExtractionStatus.SUCCEEDED:
             logger.info("  ↳ SKIPPED (content hash match — version already processed)")
             stats.skipped += 1
@@ -334,9 +330,7 @@ async def _process_document(
         )
 
     if not extracted.full_text.strip():
-        raise ValueError(
-            "No extractable text after native extraction and OCR — nothing to index"
-        )
+        raise ValueError("No extractable text after native extraction and OCR — nothing to index")
 
     text_sample = extracted.full_text[:2000]
 
@@ -349,9 +343,7 @@ async def _process_document(
         text_sample=text_sample,
         repository_metadata=remote_doc.metadata,
     )
-    logger.info(
-        "  ↳ Classified as '%s' (conf=%.2f)", doc_type_label, classification_conf
-    )
+    logger.info("  ↳ Classified as '%s' (conf=%.2f)", doc_type_label, classification_conf)
 
     # ── 6. Extract / normalise metadata ──────────────────────────────────────
     normalized: NormalizedMetadata = metadata_extractor.extract(
@@ -433,9 +425,7 @@ async def _process_document(
         chunk_data_list = chunker.chunk(extracted)
         question_data_list = []
 
-    logger.info(
-        "  ↳ %d chunks, %d questions", len(chunk_data_list), len(question_data_list)
-    )
+    logger.info("  ↳ %d chunks, %d questions", len(chunk_data_list), len(question_data_list))
 
     # ── 11. Build domain Chunk objects ────────────────────────────────────────
     chunks: list[Chunk] = [
@@ -544,11 +534,11 @@ async def _process_document(
     # Failure modes:
     #   • Qdrant fails → exception propagates → session.rollback() cancels
     #     PENDING version + chunks → next run retries cleanly.
-#   • mark_processed or pg commit fails after Qdrant succeeds → version
-#     stays PENDING in Postgres (rolled back) → next run deletes the document's
-#     points and upserts a fresh set, so no orphans accumulate. Purge is by
-#     document, not version: earlier runs under different version_ids would
-#     otherwise leave their points behind.
+    #   • mark_processed or pg commit fails after Qdrant succeeds → version
+    #     stays PENDING in Postgres (rolled back) → next run deletes the document's
+    #     points and upserts a fresh set, so no orphans accumulate. Purge is by
+    #     document, not version: earlier runs under different version_ids would
+    #     otherwise leave their points behind.
     #
     # Invariant: SUCCEEDED in Postgres ↔ vectors present in Qdrant.
     logger.info("  ↳ Upserting %d vectors to Qdrant...", len(vectors))

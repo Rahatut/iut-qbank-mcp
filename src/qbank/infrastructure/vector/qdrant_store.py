@@ -299,9 +299,7 @@ class QdrantStore:
         for start in range(0, len(points), self.UPSERT_BATCH_SIZE):
             batch = points[start : start + self.UPSERT_BATCH_SIZE]
             await self._client.upsert(collection_name=name, points=batch)
-            logger.debug(
-                "Upserted %d/%d points to %s", start + len(batch), len(points), name
-            )
+            logger.debug("Upserted %d/%d points to %s", start + len(batch), len(points), name)
 
     async def search(
         self,
@@ -354,9 +352,7 @@ class QdrantStore:
         points, _ = await self._client.scroll(
             collection_name=name,
             scroll_filter=Filter(
-                must=[
-                    FieldCondition(key="document_id", match=MatchValue(value=document_id))
-                ]
+                must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
             ),
             limit=limit,
             with_payload=True,
@@ -364,9 +360,7 @@ class QdrantStore:
         )
         return [SearchResult.from_record(p) for p in points]
 
-    async def delete_by_version(
-        self, version_id: str, collection: str | None = None
-    ) -> int:
+    async def delete_by_version(self, version_id: str, collection: str | None = None) -> int:
         """Remove all vectors belonging to a document version.
 
         Re-ingesting mints new chunk_ids, so upsert alone leaves the previous
@@ -378,23 +372,17 @@ class QdrantStore:
             must=[FieldCondition(key="version_id", match=MatchValue(value=version_id))]
         )
         removed = await _count_matching(self._client, name, payload_filter)
-        await self._client.delete(
-            collection_name=name, points_selector=payload_filter, wait=True
-        )
+        await self._client.delete(collection_name=name, points_selector=payload_filter, wait=True)
         return removed
 
-    async def delete_by_document(
-        self, document_id: str, collection: str | None = None
-    ) -> int:
+    async def delete_by_document(self, document_id: str, collection: str | None = None) -> int:
         """Remove all vectors belonging to a document, any version."""
         name = collection or self._collection
         payload_filter = Filter(
             must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
         )
         removed = await _count_matching(self._client, name, payload_filter)
-        await self._client.delete(
-            collection_name=name, points_selector=payload_filter, wait=True
-        )
+        await self._client.delete(collection_name=name, points_selector=payload_filter, wait=True)
         return removed
 
     async def health(self) -> bool:
