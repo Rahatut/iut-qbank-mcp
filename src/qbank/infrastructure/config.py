@@ -33,26 +33,41 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     # ── PostgreSQL ────────────────────────────────────────────────────────────
+    # DATABASE_URL takes precedence (standard on Render, Railway, Fly, etc.).
+    # Falls back to individual POSTGRES_* vars for local dev.
+    database_url: str | None = Field(default=None, alias="DATABASE_URL")
+
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
     postgres_db: str = Field(default="qbank", alias="POSTGRES_DB")
     postgres_user: str = Field(default="qbank", alias="POSTGRES_USER")
     postgres_password: str = Field(default="", alias="POSTGRES_PASSWORD")
 
-    @property
-    def postgres_dsn(self) -> str:
+    def _build_dsn(self, driver: str) -> str:
+        """Build a DSN for the given driver (asyncpg or psycopg2).
+
+        Prefers DATABASE_URL if set; otherwise composes from individual vars.
+        """
+        if self.database_url:
+            # Convert generic postgresql:// to driver-specific scheme
+            if self.database_url.startswith("postgresql://"):
+                return self.database_url.replace("postgresql://", f"postgresql+{driver}://", 1)
+            if self.database_url.startswith("postgres://"):
+                return self.database_url.replace("postgres://", f"postgresql+{driver}://", 1)
+            return self.database_url
         return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+{driver}://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
     @property
+    def postgres_dsn(self) -> str:
+        return self._build_dsn("asyncpg")
+
+    @property
     def postgres_dsn_sync(self) -> str:
         """Synchronous DSN for Alembic migrations."""
-        return (
-            f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
+        return self._build_dsn("psycopg2")
 
     # ── Qdrant ────────────────────────────────────────────────────────────────
     qdrant_host: str = Field(default="localhost", alias="QDRANT_HOST")
