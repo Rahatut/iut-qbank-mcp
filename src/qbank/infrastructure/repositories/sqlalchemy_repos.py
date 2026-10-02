@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from qbank.domain.models import (
@@ -93,6 +93,25 @@ def _row_to_document(row: DocumentRow) -> Document:
     )
 
 
+def _parse_extraction_method(value: str | None) -> ExtractionMethod | None:
+    """Parse a stored extraction_method, tolerating legacy labels.
+
+    Rows written before OCR was wired in can hold 'native_low_quality',
+    'ocr_required', or 'hybrid_required'. An unknown label must not raise,
+    or every read of such a row fails and blocks re-ingestion.
+    """
+    if not value:
+        return None
+    try:
+        return ExtractionMethod(value)
+    except ValueError:
+        return {
+            "native_low_quality": ExtractionMethod.NATIVE,
+            "ocr_required": ExtractionMethod.OCR,
+            "hybrid_required": ExtractionMethod.HYBRID,
+        }.get(value)
+
+
 def _row_to_version(row: DocumentVersionRow) -> DocumentVersion:
     return DocumentVersion(
         version_id=row.version_id,
@@ -101,9 +120,7 @@ def _row_to_version(row: DocumentVersionRow) -> DocumentVersion:
         file_size_bytes=row.file_size_bytes,
         storage_key=row.storage_key,
         extraction_status=ExtractionStatus(row.extraction_status),
-        extraction_method=ExtractionMethod(row.extraction_method)
-        if row.extraction_method
-        else None,
+        extraction_method=_parse_extraction_method(row.extraction_method),
         text_quality_score=row.text_quality_score,
         page_count=row.page_count,
         created_at=row.created_at,
@@ -352,7 +369,22 @@ class SqlDocumentVersionRepository(DocumentVersionRepository):
         return _row_to_version(row) if row else None
 
     async def save(self, version: DocumentVersion) -> None:
+        # A previous run may have left a PENDING row for this exact content
+        # hash (uq_versions_doc_hash). Reuse it instead of inserting a
+        # duplicate, otherwise re-ingestion fails on the unique constraint.
         existing = await self._session.get(DocumentVersionRow, version.version_id)
+        if existing is None:
+            existing = (
+                await self._session.execute(
+                    select(DocumentVersionRow).where(
+                        DocumentVersionRow.document_id == version.document_id,
+                        DocumentVersionRow.version_hash == version.version_hash,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is not None:
+                version.version_id = existing.version_id
+
         if existing:
             existing.extraction_status = version.extraction_status.value
             existing.extraction_method = (
@@ -431,6 +463,9 @@ class SqlChunkRepository(ChunkRepository):
                     question_number=chunk.question_number,
                 )
             )
+        # Flush now: questions reference chunk_id, and no ORM relationship()
+        # exists for SQLAlchemy to derive insert ordering from.
+        await self._session.flush()
 
     async def delete_by_version(self, version_id: str) -> int:
         result = await self._session.execute(
@@ -438,8 +473,15 @@ class SqlChunkRepository(ChunkRepository):
         )
         rows = result.scalars().all()
         count = len(rows)
+        # questions.chunk_id is a non-null FK onto document_chunks, so the
+        # child rows must go first.
+        for row in rows:
+            await self._session.execute(
+                delete(QuestionRow).where(QuestionRow.chunk_id == row.chunk_id)
+            )
         for row in rows:
             await self._session.delete(row)
+        await self._session.flush()
         return count
 
 

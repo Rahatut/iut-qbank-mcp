@@ -53,6 +53,19 @@ class TestNormalizeCourseCode:
     def test_leading_trailing_whitespace(self) -> None:
         assert normalize_course_code("  CSE3101  ") == "CSE3101"
 
+    def test_month_name_rejected(self) -> None:
+        # OCR of paper headers yields month words next to digits; the old
+        # pattern matched these as course codes and polluted the index.
+        assert normalize_course_code("May 2021") is None
+
+    def test_month_year_spaced_rejected(self) -> None:
+        assert normalize_course_code("MAY 2021") is None
+
+    def test_real_codes_with_monthlike_prefix_kept(self) -> None:
+        assert normalize_course_code("MAT2201") == "MAT2201"
+        assert normalize_course_code("CIV2101") == "CIV2101"
+        assert normalize_course_code("MIS4101") == "MIS4101"
+
 
 @pytest.mark.unit
 class TestCodesAreEquivalent:

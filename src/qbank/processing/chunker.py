@@ -15,10 +15,13 @@ Architecture:
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from qbank.processing.interfaces import ChunkData, Chunker, ExtractedDocument
+
+logger = logging.getLogger(__name__)
 
 # ── Question-paper patterns ───────────────────────────────────────────────────
 
@@ -87,20 +90,7 @@ class QuestionPaperChunker(Chunker):
 
     def chunk(self, extracted: ExtractedDocument) -> list[ChunkData]:
         """Split the extracted document into chunks preserving question structure."""
-        all_chunks: list[ChunkData] = []
-
-        for page_text in extracted.pages:
-            if not page_text.text.strip():
-                continue
-
-            page_chunks = self._chunk_page(
-                text=page_text.text,
-                page_number=page_text.page_number,
-                start_index=len(all_chunks),
-            )
-            all_chunks.extend(page_chunks)
-
-        return all_chunks
+        return self.chunk_with_questions(extracted)[0]
 
     def chunk_with_questions(
         self, extracted: ExtractedDocument
@@ -125,13 +115,46 @@ class QuestionPaperChunker(Chunker):
             all_chunks.extend(chunks)
             all_questions.extend(questions)
 
-        return all_chunks, all_questions
+        # Renumber densely. Intermediate indices are computed as offsets that
+        # skip dropped splits, so they collide across pages; callers use
+        # chunk_index to link a question to its chunk and require a 1:1 map.
+        remapped: list[ChunkData] = []
+        index_map: dict[int, int] = {}
+        for position, chunk in enumerate(all_chunks):
+            index_map[chunk.chunk_index] = position
+            remapped.append(
+                ChunkData(
+                    text=chunk.text,
+                    page=chunk.page,
+                    chunk_index=position,
+                    token_count=chunk.token_count,
+                    question_number=chunk.question_number,
+                )
+            )
+
+        linked: list[QuestionData] = []
+        for question in all_questions:
+            dense = index_map.get(question.chunk_index)
+            if dense is None:
+                logger.debug(
+                    "Dropping question %s: chunk index %d not found",
+                    question.question_number,
+                    question.chunk_index,
+                )
+                continue
+            linked.append(
+                QuestionData(
+                    question_number=question.question_number,
+                    text=question.text,
+                    page=question.page,
+                    chunk_index=dense,
+                    sub_questions=question.sub_questions,
+                )
+            )
+
+        return remapped, linked
 
     # ── Internal helpers ──────────────────────────────────────────────────────
-
-    def _chunk_page(self, text: str, page_number: int, start_index: int) -> list[ChunkData]:
-        chunks, _ = self._chunk_page_with_questions(text, page_number, start_index)
-        return chunks
 
     def _chunk_page_with_questions(
         self,
@@ -182,15 +205,27 @@ class QuestionPaperChunker(Chunker):
             block_end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
             block_text = text[block_start:block_end].strip()
 
+            first_index = start_index + len(chunks)
             question_chunks = self._split_question_block(
                 text=block_text,
                 question_number=q_num,
                 page_number=page_number,
-                start_index=start_index + len(chunks),
+                start_index=first_index,
             )
             chunks.extend(question_chunks)
 
-            # Build structured question (DEV-021)
+            # A question must point at a chunk that exists: questions.chunk_id
+            # is a non-null FK. Blocks dropped for being too short or empty
+            # produce no chunk, so skip them rather than emitting a dangling
+            # chunk_index.
+            if not question_chunks:
+                logger.debug(
+                    "Dropping question %s on page %d: no chunk produced",
+                    q_num,
+                    page_number,
+                )
+                continue
+
             sub_q_matches = _SUB_QUESTION.findall(block_text)
             sub_labels = [m[0] or m[1] for m in sub_q_matches]
             questions.append(
@@ -198,7 +233,7 @@ class QuestionPaperChunker(Chunker):
                     question_number=q_num,
                     text=block_text,
                     page=page_number,
-                    chunk_index=start_index + len(chunks) - len(question_chunks),
+                    chunk_index=first_index,
                     sub_questions=sub_labels,
                 )
             )

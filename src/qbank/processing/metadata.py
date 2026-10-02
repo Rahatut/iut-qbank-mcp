@@ -29,17 +29,38 @@ _EXAM_TYPE_PATTERNS = {
     "midterm": re.compile(r"\b(mid[\s\-]?term|mid[\s\-]?semester)\b", re.IGNORECASE),
     "quiz": re.compile(r"\b(quiz|class[\s\-]?test)\b", re.IGNORECASE),
 }
+# IUT departments, keyed by code. Order matters: the scan returns the first
+# match found in the text, so it follows the department cross-listing order
+# (e.g. "CEE" must be tried before "CE" to avoid a partial match).
 _DEPT_PATTERNS = {
-    "CSE": re.compile(r"\bCSE\b"),
-    "EEE": re.compile(r"\bEEE\b"),
-    "MCE": re.compile(r"\bMCE\b"),
-    "CE": re.compile(r"\bCE\b"),
-    "TVE": re.compile(r"\bTVE\b"),
-    "BTM": re.compile(r"\bBTM\b"),
+    code: re.compile(rf"\b{code}\b")
+    for code in (
+        "CSE",
+        "EEE",
+        "CEE",
+        "CE",
+        "MCE",
+        "CIV",
+        "MAT",
+        "PHY",
+        "CHE",
+        "TVE",
+        "MPE",
+        "NSC",
+        "BTM",
+        "HUM",
+        "BBA",
+        "MIS",
+        "MGT",
+        "URP",
+        "IPE",
+        "SWE",
+    )
 }
-# Match academic course codes, e.g. CSE4105, MATH 1101, PHY-101
-_COURSE_CODE_PATTERN = re.compile(r"\b([A-Za-z]{2,4})[\s\-_]?(\d{3,4}[A-Za-z]?)\b")
-_STOPWORD_PREFIXES = frozenset({"IN", "AT", "ON", "BY", "TO", "OF", "FOR", "NO", "VOL", "PP"})
+# Match academic course codes, e.g. CSE4105, MATH 1101, PHY-101.
+# Junk prefixes ("in 2009", "May 2021") are rejected by normalize_course_code,
+# so no separate stopword list is needed here.
+_COURSE_CODE_PATTERN = re.compile(r"\b([A-Za-z]{2,5})[\s\-_]?(\d{3,4}[A-Za-z]?)\b")
 
 
 def _find_year(text: str) -> tuple[int | None, float]:
@@ -71,10 +92,8 @@ def _find_department(text: str) -> tuple[str | None, float]:
 
 
 def _find_course_code(text: str) -> tuple[str | None, float]:
+    """Return the first course code that survives junk-prefix filtering."""
     for m in _COURSE_CODE_PATTERN.finditer(text):
-        raw_prefix = m.group(1).upper()
-        if raw_prefix in _STOPWORD_PREFIXES:
-            continue
         canonical = normalize_course_code(m.group(0))
         if canonical:
             return canonical, 0.7

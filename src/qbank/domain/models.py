@@ -240,8 +240,8 @@ class Question:
     Exists alongside generic chunks — see DEV-021.
     """
 
+    chunk_id: str  # owning chunk; the questions table column is a non-null UUID
     question_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    chunk_id: str = ""
     document_id: str = ""
     version_id: str = ""
     question_number: str = ""  # e.g. "3(a)"

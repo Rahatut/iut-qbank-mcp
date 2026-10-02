@@ -16,15 +16,22 @@ Only URIs backed by real canonical entities are exposed (DEV-036).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
 from fastmcp import FastMCP
 
 from apps.mcp_server.container import get_container
-from qbank.application.retrieval_service import PastPapersQuery, SearchQuery
+from qbank.application.response_budget import truncate_text
+from qbank.application.retrieval_service import PastPapersQuery
 
 logger = logging.getLogger(__name__)
+
+# Resource payloads are read whole into the client's context, so they get
+# their own caps. A syllabus or paper listing is metadata, not full text.
+MAX_RESOURCE_TEXT_CHARS = 4000
+MAX_SYLLABUS_SNIPPET_CHARS = 600
 
 
 def register_resources(mcp: FastMCP) -> None:
@@ -41,8 +48,6 @@ def register_resources(mcp: FastMCP) -> None:
         container = get_container()
 
         # Fetch syllabus, materials, and recent papers concurrently
-        import asyncio
-
         syllabus_task = container.retrieval_service.get_course_syllabus(course_code)
         materials_task = container.retrieval_service.get_course_materials(course_code, limit=5)
         papers_task = container.retrieval_service.get_past_papers(
@@ -65,7 +70,11 @@ def register_resources(mcp: FastMCP) -> None:
                 }
                 for r in papers
             ],
-            "syllabus_snippet": syllabus[0].text[:500] if syllabus else None,
+            "syllabus_snippet": (
+                truncate_text(syllabus[0].text, MAX_SYLLABUS_SNIPPET_CHARS)[0]
+                if syllabus
+                else None
+            ),
         }
 
     # ── course://{course_code}/syllabus ────────────────────────────────────
@@ -81,10 +90,13 @@ def register_resources(mcp: FastMCP) -> None:
         if not results:
             return {"course_code": course_code, "found": False, "content": None}
         top = results[0]
+        content, truncated = truncate_text(top.text, MAX_RESOURCE_TEXT_CHARS)
         return {
             "course_code": course_code,
             "found": True,
-            "content": top.text,
+            "content": content,
+            "truncated": truncated,
+            "original_chars": len(top.text),
             "source": {
                 "document_id": top.document_id,
                 "title": top.document_title,
@@ -101,21 +113,19 @@ def register_resources(mcp: FastMCP) -> None:
         URI: course://CSE3101/materials
         """
         container = get_container()
-        results = await container.retrieval_service.get_course_materials(course_code, limit=30)
-        # Deduplicate by document_id
-        seen: set[str] = set()
-        docs: list[dict[str, Any]] = []
-        for r in results:
-            if r.document_id not in seen:
-                seen.add(r.document_id)
-                docs.append(
-                    {
-                        "document_id": r.document_id,
-                        "title": r.document_title,
-                        "document_type": r.document_type,
-                        "url": r.document_url,
-                    }
-                )
+        results = await container.retrieval_service.get_course_materials(course_code, limit=50)
+        # get_course_materials already collapses to one entry per document.
+        docs: list[dict[str, Any]] = [
+            {
+                "document_id": r.document_id,
+                "title": r.document_title,
+                "document_type": r.document_type,
+                "year": r.year,
+                "semester": r.semester,
+                "url": r.document_url,
+            }
+            for r in results
+        ]
         return {
             "course_code": course_code,
             "materials": docs,
@@ -132,24 +142,19 @@ def register_resources(mcp: FastMCP) -> None:
         """
         container = get_container()
         results = await container.retrieval_service.get_past_papers(
-            PastPapersQuery(course_code=course_code, limit=50)
+            PastPapersQuery(course_code=course_code, limit=100)
         )
-        # Deduplicate by document_id; keep best score per document
-        seen: dict[str, dict[str, Any]] = {}
-        for r in results:
-            if r.document_id not in seen:
-                seen[r.document_id] = {
-                    "document_id": r.document_id,
-                    "title": r.document_title,
-                    "year": r.year,
-                    "semester": r.semester,
-                    "url": r.document_url,
-                }
-        papers = sorted(
-            seen.values(),
-            key=lambda x: (x.get("year") or 0, x.get("semester") or ""),
-            reverse=True,
-        )
+        # get_past_papers already returns one entry per paper, sorted newest first.
+        papers: list[dict[str, Any]] = [
+            {
+                "document_id": r.document_id,
+                "title": r.document_title,
+                "year": r.year,
+                "semester": r.semester,
+                "url": r.document_url,
+            }
+            for r in results
+        ]
         return {
             "course_code": course_code,
             "papers": papers,
@@ -195,27 +200,20 @@ def register_resources(mcp: FastMCP) -> None:
         Returns document metadata. To search within a document use search_questions.
         """
         container = get_container()
-        # Search for content from this specific document
-        results = await container.retrieval_service.search(
-            SearchQuery(
-                query=document_id,
-                limit=1,
-            )
-        )
-        # Find matching document from any result
-        for r in results:
-            if r.document_id == document_id:
-                return {
-                    "document_id": r.document_id,
-                    "title": r.document_title,
-                    "url": r.document_url,
-                    "course_code": r.course_code,
-                    "year": r.year,
-                    "semester": r.semester,
-                    "document_type": r.document_type,
-                    "department": r.department,
-                }
+        result = await container.retrieval_service.get_document(document_id)
+        if result is None:
+            return {
+                "document_id": document_id,
+                "found": False,
+            }
         return {
-            "document_id": document_id,
-            "found": False,
+            "document_id": result.document_id,
+            "found": True,
+            "title": result.document_title,
+            "url": result.document_url,
+            "course_code": result.course_code,
+            "year": result.year,
+            "semester": result.semester,
+            "document_type": result.document_type,
+            "department": result.department,
         }

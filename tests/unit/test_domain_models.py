@@ -63,7 +63,11 @@ class TestDomainModelsInstantiation:
         assert chunk.provenance is None
 
     def test_question_defaults(self) -> None:
-        q = Question(question_number="3(a)", text="Explain normalization.")
+        q = Question(
+            chunk_id="chunk-1",
+            question_number="3(a)",
+            text="Explain normalization.",
+        )
         assert q.marks is None
         assert q.provenance is None
 

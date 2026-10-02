@@ -92,11 +92,19 @@ class TestRetrievalService:
         assert "mutex" in call_kwargs
 
     @pytest.mark.asyncio
-    async def test_search_questions_forces_question_paper_type(self) -> None:
+    async def test_search_questions_leaves_document_type_unset(self) -> None:
+        # An unfiltered search must not be pinned to question_paper: the only
+        # indexed corpus was once a thesis, and forcing the type hid it.
         await self.service.search_questions(query="Fourier transform")
         call_kwargs = self.mock_store.search.call_args.kwargs
         sf = call_kwargs["search_filter"]
-        assert sf.document_type == "question_paper"
+        assert sf.document_type is None
+
+    @pytest.mark.asyncio
+    async def test_search_questions_passes_department(self) -> None:
+        await self.service.search_questions(query="signal", department="CSE")
+        sf = self.mock_store.search.call_args.kwargs["search_filter"]
+        assert sf.department == "CSE"
 
     @pytest.mark.asyncio
     async def test_get_past_papers_uses_correct_doc_type(self) -> None:

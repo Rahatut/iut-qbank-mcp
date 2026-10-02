@@ -75,6 +75,7 @@ from qbank.processing.embedding import SentenceTransformerProvider
 from qbank.processing.extractor import PyMuPDFExtractor
 from qbank.processing.interfaces import ChunkData, NormalizedMetadata
 from qbank.processing.metadata import RuleBasedMetadataExtractor
+from qbank.processing.ocr import TesseractOCRProcessor
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 logging.getLogger("qdrant_client").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 
 # ── Run statistics ────────────────────────────────────────────────────────────
@@ -158,13 +160,36 @@ def _semester_from_str(s: str | None) -> Semester | None:
 
 
 def _extraction_method_from_str(method: str) -> ExtractionMethod | None:
-    mapping = {
-        "native": ExtractionMethod.NATIVE,
+    """Map an ExtractedDocument method string onto the persisted enum.
+
+    Accepts the per-page markers as well as document-level values so callers
+    can pass either level without raising ValueError on an unknown label.
+    """
+    try:
+        return ExtractionMethod(method)
+    except ValueError:
+        pass
+    return {
         "native_low_quality": ExtractionMethod.NATIVE,
         "ocr_required": ExtractionMethod.OCR,
         "hybrid_required": ExtractionMethod.HYBRID,
-    }
-    return mapping.get(method)
+    }.get(method)
+
+
+def _exception_chain(exc: BaseException) -> str:
+    """Flatten the __cause__/__context__ chain.
+
+    Wrapped client errors (ResponseHandlingException and friends) hide the
+    real message in their cause, so the top-level str() is often empty.
+    """
+    parts: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        parts.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__ or current.__context__
+    return " -> ".join(parts)
 
 
 # ── Core ingestion logic ──────────────────────────────────────────────────────
@@ -215,6 +240,7 @@ async def _process_document(
     question_repo: SqlQuestionRepository,
     stats: RunStats,
     dry_run: bool,
+    ocr_processor: TesseractOCRProcessor | None = None,
 ) -> bool:
     """Full pipeline for a single RemoteDocument. Returns True on success."""
 
@@ -292,6 +318,25 @@ async def _process_document(
 
     if extracted.extraction_method == "failed":
         raise ValueError("PDF text extraction failed (no pages returned)")
+
+    # Scanned question papers have no text layer at all, so every page needs
+    # OCR before it can be classified, chunked, or embedded.
+    if ocr_processor is not None and extracted.needs_ocr:
+        ocr_pages, ocr_failed = ocr_processor.ocr_document(extractor, pdf_bytes, extracted)
+        if ocr_pages:
+            extracted = extracted.with_pages(ocr_pages)
+        logger.info(
+            "  ↳ OCR: %d pages with text, %d failed, method=%s, quality=%.2f",
+            sum(1 for p in ocr_pages if p.text.strip()),
+            ocr_failed,
+            extracted.extraction_method,
+            extracted.overall_quality,
+        )
+
+    if not extracted.full_text.strip():
+        raise ValueError(
+            "No extractable text after native extraction and OCR — nothing to index"
+        )
 
     text_sample = extracted.full_text[:2000]
 
@@ -407,21 +452,40 @@ async def _process_document(
     ]
 
     # ── 12. Build domain Question objects ─────────────────────────────────────
-    questions: list[Question] = [
-        Question(
-            document_id=document_id,
-            version_id=version_id,
-            question_number=qd.question_number,
-            text=qd.text,
-            page=qd.page,
-            course_code=normalized.course_code,
-            year=normalized.year,
-            semester=semester_enum,
+    # questions.chunk_id is a non-null UUID FK, so link each question back to
+    # the chunk that carries the same position in the document.
+    chunk_id_by_index = {c.chunk_index: c.chunk_id for c in chunks}
+    questions: list[Question] = []
+    for qd in question_data_list:
+        owner_chunk_id = chunk_id_by_index.get(qd.chunk_index)
+        if owner_chunk_id is None:
+            logger.warning(
+                "  ↳ Question %s has no matching chunk (index=%d); skipped",
+                qd.question_number,
+                qd.chunk_index,
+            )
+            continue
+        questions.append(
+            Question(
+                chunk_id=owner_chunk_id,
+                document_id=document_id,
+                version_id=version_id,
+                question_number=qd.question_number,
+                text=qd.text,
+                page=qd.page,
+                course_code=normalized.course_code,
+                year=normalized.year,
+                semester=semester_enum,
+            )
         )
-        for qd in question_data_list
-    ]
 
     # ── 13. Persist chunks and questions ──────────────────────────────────────
+    # Re-processing a version mints new chunk_ids, so clear the previous
+    # attempt's rows first — otherwise every retry leaves another full set
+    # behind and the chunk count grows without bound.
+    stale_chunks = await chunk_repo.delete_by_version(version_id)
+    if stale_chunks:
+        logger.info("  ↳ Removed %d stale chunk rows from a previous attempt", stale_chunks)
     await chunk_repo.bulk_insert(chunks)
     if questions:
         await question_repo.bulk_insert(questions)
@@ -480,12 +544,19 @@ async def _process_document(
     # Failure modes:
     #   • Qdrant fails → exception propagates → session.rollback() cancels
     #     PENDING version + chunks → next run retries cleanly.
-    #   • mark_processed or pg commit fails after Qdrant succeeds → version
-    #     stays PENDING in Postgres (rolled back) → next run re-upserts the
-    #     same chunk_ids into Qdrant (QdrantStore.upsert is idempotent).
+#   • mark_processed or pg commit fails after Qdrant succeeds → version
+#     stays PENDING in Postgres (rolled back) → next run deletes the document's
+#     points and upserts a fresh set, so no orphans accumulate. Purge is by
+#     document, not version: earlier runs under different version_ids would
+#     otherwise leave their points behind.
     #
     # Invariant: SUCCEEDED in Postgres ↔ vectors present in Qdrant.
     logger.info("  ↳ Upserting %d vectors to Qdrant...", len(vectors))
+    # Re-processing mints fresh chunk_ids, so stale points from earlier attempts
+    # would survive as orphans that still match every metadata filter.
+    purged = await qdrant_store.delete_by_document(document_id)
+    if purged:
+        logger.info("  ↳ Purged %d stale Qdrant points for this document", purged)
     await qdrant_store.upsert(vectors=vectors, payloads=payloads)
 
     # ── 17. Mark version SUCCEEDED — only after Qdrant confirms ──────────────
@@ -508,16 +579,23 @@ async def _process_document(
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 
-async def run(limit: int | None, dry_run: bool) -> int:
+async def run(
+    limit: int | None,
+    dry_run: bool,
+    search_query: str | None = None,
+    title_must_match: str | None = None,
+) -> int:
     """Main ingestion loop. Returns exit code (0 = success, 1 = partial failure)."""
 
     settings = get_settings()
     stats = RunStats()
 
     logger.info(
-        "Starting DSpace ingestion (limit=%s, dry_run=%s)",
+        "Starting DSpace ingestion (limit=%s, dry_run=%s, query=%r, title_filter=%r)",
         limit if limit else "unlimited",
         dry_run,
+        search_query,
+        title_must_match,
     )
 
     # ── Infrastructure setup ──────────────────────────────────────────────────
@@ -544,8 +622,19 @@ async def run(limit: int | None, dry_run: bool) -> int:
     classifier = RuleBasedClassifier()
     chunker = QuestionPaperChunker()
 
+    # Scanned PDFs have no text layer; OCR is the only way to index them.
+    ocr_processor: TesseractOCRProcessor | None = None
+    if settings.ocr_enabled:
+        ocr_processor = TesseractOCRProcessor()
+        logger.info("OCR enabled (lang=%s)", settings.ocr_language)
+    else:
+        logger.warning("OCR disabled — scanned PDFs will produce no chunks")
+
     # ── Connector ─────────────────────────────────────────────────────────────
-    connector = DSpaceConnector()
+    connector = DSpaceConnector(
+        search_query=search_query,
+        title_must_match=title_must_match,
+    )
 
     # ── SyncRun record ────────────────────────────────────────────────────────
     sync_run = SyncRun(started_at=datetime.now(UTC))
@@ -594,18 +683,20 @@ async def run(limit: int | None, dry_run: bool) -> int:
                         question_repo=question_repo,
                         stats=stats,
                         dry_run=dry_run,
+                        ocr_processor=ocr_processor,
                     )
                     # Commit after each successfully processed document
                     if not dry_run:
                         await session.commit()
 
-                except Exception:
+                except Exception as exc:
                     stats.failed += 1
                     stats.failed_titles.append(remote_doc.title or remote_doc.remote_id)
                     logger.error(
-                        "FAILED: %s\n%s",
+                        "FAILED: %s\n%s\nCause chain: %s",
                         remote_doc.title or remote_doc.remote_id,
                         traceback.format_exc(),
+                        _exception_chain(exc),
                     )
                     # Roll back partial work for this document only
                     await session.rollback()
@@ -657,6 +748,27 @@ def _parse_args() -> argparse.Namespace:
         help="Discover and classify documents without writing to the database or Qdrant.",
     )
     parser.add_argument(
+        "--query",
+        type=str,
+        default=None,
+        metavar="Q",
+        help=(
+            "DSpace discovery query limiting the item set, e.g. 'question papers'. "
+            "Omit to walk every item in the repository."
+        ),
+    )
+    parser.add_argument(
+        "--title-contains",
+        type=str,
+        default=None,
+        metavar="TEXT",
+        help=(
+            "Only ingest items whose title contains TEXT (case-insensitive). "
+            "Use with --query: DSpace search matches full text, so a query "
+            "alone also returns theses that merely mention the phrase."
+        ),
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         default=False,
@@ -670,5 +782,12 @@ if __name__ == "__main__":
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    exit_code = asyncio.run(run(limit=args.limit, dry_run=args.dry_run))
+    exit_code = asyncio.run(
+        run(
+            limit=args.limit,
+            dry_run=args.dry_run,
+            search_query=args.query,
+            title_must_match=args.title_contains,
+        )
+    )
     sys.exit(exit_code)

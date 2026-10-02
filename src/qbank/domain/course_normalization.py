@@ -16,12 +16,34 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# Matches: optional prefix letters, optional separator, digits, optional suffix
+# Matches: 2-5 letters, optional separator, 3-4 digits, optional letter suffix.
 _COURSE_PATTERN = re.compile(
-    r"^([A-Za-z]+)"  # department prefix  e.g. CSE, EEE, PHY
+    r"^([A-Za-z]{2,5})"  # department prefix  e.g. CSE, EEE, MAT, CIV
     r"[\s\-_]?"  # optional separator
     r"(\d{3,4})"  # course number      e.g. 3101, 101
     r"([A-Za-z]?)$"  # optional suffix    e.g. L (lab)
+)
+
+# Prefixes that are never course codes. Extracted from real DSpace text where
+# prose like "founded in 2009" or "May 2021" pattern-matches as a course code.
+# A blocklist is used rather than an allowlist so that new or uncommon IUT
+# department codes (MAT, CIV, CHE, URP, MIS, MGT, ...) stay valid.
+_JUNK_PREFIXES = frozenset(
+    {
+        # English function / common words
+        "A", "AN", "AND", "ARE", "AS", "AT", "BE", "BY", "FOR", "FROM",
+        "IN", "INTO", "IS", "IT", "OF", "ON", "OR", "THE", "TO", "WITH",
+        # calendar and reference terms
+        "ABOUT", "APRIL", "AUG", "AUGUST", "DEC", "DECEMBER", "FEB", "FEBRUARY",
+        "FY", "JAN", "JANUARY", "JUL", "JULY", "JUN", "JUNE", "MAR", "MARCH",
+        "MAY", "MONTH", "NOV", "NOVEMBER", "OCT", "OCTOBER", "PAGES", "PP",
+        "SEP", "SEPT", "SEPTEMBER", "VOL", "YEAR",
+        # numbers masquerading as text
+        "AL", "NO", "NUM",
+        # publication / venue / tooling noise seen in theses
+        "ACL", "ARIK", "ARXIV", "DOI", "EMNLP", "IEEE", "ISBN", "ISSN",
+        "LREC", "NAACL", "PAKDD", "SINCE", "TRL", "TSD",
+    }
 )
 
 
@@ -33,6 +55,8 @@ def normalize_course_code(raw: str) -> str | None:
         "CSE 3101"  → "CSE3101"
         "eee-2201"  → "EEE2201"
         "PHY101L"   → "PHY101L"
+        "in 2009"   → None (junk prefix)
+        "May 2021"  → None (junk prefix)
         "garbage"   → None
     """
     cleaned = raw.strip()
@@ -40,7 +64,12 @@ def normalize_course_code(raw: str) -> str | None:
     if not m:
         return None
     prefix, number, suffix = m.groups()
-    return f"{prefix.upper()}{number}{suffix.upper()}"
+    prefix_upper = prefix.upper()
+
+    if prefix_upper in _JUNK_PREFIXES:
+        return None
+
+    return f"{prefix_upper}{number}{suffix.upper()}"
 
 
 def codes_are_equivalent(a: str, b: str) -> bool:

@@ -8,10 +8,12 @@ Manages the iut_qbank_chunks_v1 collection with:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from qdrant_client import AsyncQdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import (
     Distance,
     FieldCondition,
@@ -20,11 +22,14 @@ from qdrant_client.http.models import (
     PayloadSchemaType,
     PointStruct,
     Range,
+    Record,
     ScoredPoint,
     VectorParams,
 )
 
 from qbank.infrastructure.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # ── Payload schema ────────────────────────────────────────────────────────────
 
@@ -127,11 +132,19 @@ class SearchResult:
 
     @classmethod
     def from_scored_point(cls, point: ScoredPoint) -> SearchResult:
-        p = point.payload or {}
+        return cls._from_payload(str(point.id), point.payload or {}, point.score)
+
+    @classmethod
+    def from_record(cls, record: Record) -> SearchResult:
+        """Build a result from a scroll/retrieve point, which carries no score."""
+        return cls._from_payload(str(record.id), record.payload or {}, 1.0)
+
+    @classmethod
+    def _from_payload(cls, point_id: str, p: dict[str, Any], score: float) -> SearchResult:
         return cls(
-            id=str(point.id),
+            id=point_id,
             text=p.get("text", ""),
-            score=point.score,
+            score=score,
             course_code=p.get("course_code"),
             year=p.get("year"),
             semester=p.get("semester"),
@@ -143,6 +156,23 @@ class SearchResult:
             department=p.get("department"),
             document_type=p.get("document_type", "other"),
         )
+
+
+async def _count_matching(
+    client: AsyncQdrantClient, collection: str, payload_filter: Filter
+) -> int:
+    """Count points matching a payload filter.
+
+    Qdrant's delete response carries only an operation status, so the number
+    of purged points has to be counted before deleting.
+    """
+    try:
+        result = await client.count(
+            collection_name=collection, count_filter=payload_filter, exact=True
+        )
+    except UnexpectedResponse:
+        return 0
+    return int(getattr(result, "count", 0) or 0)
 
 
 # ── Qdrant client wrapper ─────────────────────────────────────────────────────
@@ -167,7 +197,18 @@ class QdrantStore:
         ("document_type", PayloadSchemaType.KEYWORD),
         ("tenant_id", PayloadSchemaType.KEYWORD),
         ("question_number", PayloadSchemaType.KEYWORD),
+        # Needed for document_id / version_id scroll filters: Qdrant rejects
+        # unindexed payload keys in filtered scroll requests.
+        ("document_id", PayloadSchemaType.KEYWORD),
+        ("version_id", PayloadSchemaType.KEYWORD),
     ]
+
+    # Points per upsert request. Keeps each write well inside the client
+    # timeout when pushing a full document to a remote Qdrant instance.
+    UPSERT_BATCH_SIZE: ClassVar[int] = 32
+
+    # Remote Qdrant writes are slower than the library default allows.
+    CLIENT_TIMEOUT_S: ClassVar[int] = 120
 
     def __init__(self, client: AsyncQdrantClient | None = None) -> None:
         settings = get_settings()
@@ -177,6 +218,7 @@ class QdrantStore:
             self._client = client or AsyncQdrantClient(
                 url=settings.qdrant_host,
                 api_key=settings.qdrant_api_key,
+                timeout=self.CLIENT_TIMEOUT_S,
             )
         else:
             self._client = client or AsyncQdrantClient(
@@ -184,6 +226,7 @@ class QdrantStore:
                 port=settings.qdrant_port,
                 https=False,
                 api_key=settings.qdrant_api_key,
+                timeout=self.CLIENT_TIMEOUT_S,
             )
 
     @property
@@ -191,7 +234,12 @@ class QdrantStore:
         return self._collection
 
     async def ensure_collection(self, collection: str | None = None) -> None:
-        """Create the collection if it does not exist and add payload indexes."""
+        """Create the collection if needed and make sure payload indexes exist.
+
+        Indexes are ensured on every call, not just at creation: adding a new
+        indexed field later would otherwise be skipped on an existing
+        collection and filtered scrolls would fail at query time.
+        """
         name = collection or self._collection
         existing = await self._client.get_collections()
         names = [c.name for c in existing.collections]
@@ -204,13 +252,24 @@ class QdrantStore:
                     distance=Distance.COSINE,
                 ),
             )
-            # Create payload indexes for fast metadata filtering
-            for field_name, schema_type in self.INDEXED_FIELDS:
+
+        # Create payload indexes for fast metadata filtering
+        for field_name, schema_type in self.INDEXED_FIELDS:
+            try:
                 await self._client.create_payload_index(
                     collection_name=name,
                     field_name=field_name,
                     field_schema=schema_type,
                 )
+            except UnexpectedResponse as exc:
+                # Already present with a different or identical schema: harmless.
+                if "already exists" not in str(exc).lower():
+                    logger.warning(
+                        "Could not create payload index %s on %s: %s",
+                        field_name,
+                        name,
+                        exc,
+                    )
 
     async def upsert(
         self,
@@ -218,7 +277,12 @@ class QdrantStore:
         payloads: list[ChunkPayload],
         collection: str | None = None,
     ) -> None:
-        """Insert or update vectors with their payloads."""
+        """Insert or update vectors with their payloads.
+
+        Batched: a single request carrying a few hundred OCR-derived chunks
+        (each with its full text payload) can exceed the client's write
+        timeout against a remote Qdrant, so send in fixed-size batches.
+        """
         name = collection or self._collection
         points = [
             PointStruct(
@@ -228,7 +292,16 @@ class QdrantStore:
             )
             for v, p in zip(vectors, payloads, strict=True)
         ]
-        await self._client.upsert(collection_name=name, points=points)
+
+        if not points:
+            return
+
+        for start in range(0, len(points), self.UPSERT_BATCH_SIZE):
+            batch = points[start : start + self.UPSERT_BATCH_SIZE]
+            await self._client.upsert(collection_name=name, points=batch)
+            logger.debug(
+                "Upserted %d/%d points to %s", start + len(batch), len(points), name
+            )
 
     async def search(
         self,
@@ -263,35 +336,66 @@ class QdrantStore:
             )
             if not points:
                 return None
-            point = points[0]
-            p = point.payload or {}
-            return SearchResult(
-                id=str(point.id),
-                text=p.get("text", ""),
-                score=1.0,
-                course_code=p.get("course_code"),
-                year=p.get("year"),
-                semester=p.get("semester"),
-                page=p.get("page"),
-                document_id=p.get("document_id", ""),
-                document_title=p.get("document_title", ""),
-                document_url=p.get("document_url", ""),
-                question_number=p.get("question_number"),
-                department=p.get("department"),
-                document_type=p.get("document_type", "other"),
-            )
+            return SearchResult.from_record(points[0])
         except Exception:
+            logger.exception("retrieve_by_id failed for %r", point_id)
             return None
 
-    async def delete_by_document(self, document_id: str, collection: str | None = None) -> None:
-        """Remove all vectors belonging to a document."""
+    async def scroll_by_document(
+        self, document_id: str, limit: int = 10, collection: str | None = None
+    ) -> list[SearchResult]:
+        """Return points belonging to a document, without semantic ranking.
+
+        Used for document:// lookups. Embedding a document_id produces no
+        meaningful similarity, so a vector search over it returns arbitrary
+        points rather than the requested document.
+        """
         name = collection or self._collection
-        await self._client.delete(
+        points, _ = await self._client.scroll(
             collection_name=name,
-            points_selector=Filter(
-                must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(key="document_id", match=MatchValue(value=document_id))
+                ]
             ),
+            limit=limit,
+            with_payload=True,
+            with_vectors=False,
         )
+        return [SearchResult.from_record(p) for p in points]
+
+    async def delete_by_version(
+        self, version_id: str, collection: str | None = None
+    ) -> int:
+        """Remove all vectors belonging to a document version.
+
+        Re-ingesting mints new chunk_ids, so upsert alone leaves the previous
+        run's points behind as orphans that still match every filter. Returns
+        the number of points deleted.
+        """
+        name = collection or self._collection
+        payload_filter = Filter(
+            must=[FieldCondition(key="version_id", match=MatchValue(value=version_id))]
+        )
+        removed = await _count_matching(self._client, name, payload_filter)
+        await self._client.delete(
+            collection_name=name, points_selector=payload_filter, wait=True
+        )
+        return removed
+
+    async def delete_by_document(
+        self, document_id: str, collection: str | None = None
+    ) -> int:
+        """Remove all vectors belonging to a document, any version."""
+        name = collection or self._collection
+        payload_filter = Filter(
+            must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
+        )
+        removed = await _count_matching(self._client, name, payload_filter)
+        await self._client.delete(
+            collection_name=name, points_selector=payload_filter, wait=True
+        )
+        return removed
 
     async def health(self) -> bool:
         """Return True if Qdrant is reachable."""

@@ -95,6 +95,7 @@ class PyMuPDFExtractor(Extractor):
 
         pages: list[PageText] = []
         needs_ocr_count = 0
+        native_usable = 0
 
         for page_num in range(len(doc)):
             page = doc[page_num]
@@ -120,6 +121,8 @@ class PyMuPDFExtractor(Extractor):
                     extraction_method="native_low_quality",
                     quality_score=quality,
                 )
+            else:
+                native_usable += 1
 
             pages.append(page_text)
 
@@ -137,16 +140,17 @@ class PyMuPDFExtractor(Extractor):
 
         if needs_ocr_count == 0:
             method = "native"
-        elif needs_ocr_count == len(pages):
-            method = "ocr_required"  # all pages need OCR
+        elif native_usable == 0:
+            method = "native"  # no usable text layer yet; caller must OCR
         else:
-            method = "hybrid_required"  # some pages need OCR
+            method = "hybrid"
 
         return ExtractedDocument(
             pages=pages,
             extraction_method=method,
             overall_quality=overall_quality,
             page_count=len(pages),
+            needs_ocr=needs_ocr_count > 0,
         )
 
     def get_page_image(self, pdf_bytes: bytes, page_number: int, dpi: int = 150) -> bytes:

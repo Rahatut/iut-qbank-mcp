@@ -69,7 +69,7 @@ def _configure_logging(log_level: str = "INFO") -> None:
 
 
 @asynccontextmanager
-async def _mcp_lifespan(server: FastMCP) -> AsyncIterator[AppContainer]:  # type: ignore[type-arg]
+async def _mcp_lifespan(server: FastMCP) -> AsyncIterator[AppContainer]:
     """Wrap our lifespan CM for FastMCP's lifespan parameter."""
     async with lifespan() as container:
         yield container

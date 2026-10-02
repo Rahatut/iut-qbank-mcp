@@ -52,13 +52,27 @@ class DSpaceConnector(ContentSource):
         base_url: str | None = None,
         api_version: str | None = None,
         client: httpx.AsyncClient | None = None,
+        search_query: str | None = None,
+        title_must_match: str | None = None,
     ) -> None:
+        """
+        Args:
+            search_query: DSpace discovery query restricting the item set,
+                e.g. "question papers". Narrows a sync to relevant material
+                instead of walking all ~2200 repository items.
+            title_must_match: case-insensitive substring the item title must
+                contain. Applied client-side because DSpace search matches
+                full text, so a query alone pulls in theses that merely
+                mention the phrase.
+        """
         settings = get_settings()
         self._base_url = (base_url or settings.dspace_base_url).rstrip("/")
         self._api_version = api_version or settings.dspace_api_version
         self._api_root = f"{self._base_url}/server/api"
         self._timeout = settings.ingestion_download_timeout_secs
         self._client = client
+        self._search_query = search_query
+        self._title_must_match = title_must_match.lower() if title_must_match else None
 
     @property
     def capabilities(self) -> ConnectorCapabilities:
@@ -129,19 +143,23 @@ class DSpaceConnector(ContentSource):
                 yield doc
 
     async def _iter_all_items(self) -> AsyncIterator[DSpaceItem]:
-        """Page through all DSpace items via REST API."""
+        """Page through DSpace items via REST API, honouring constructor filters."""
         page = 0
         page_size = 50
         while True:
+            params: dict[str, Any] = {
+                "dsoType": "item",
+                "page": page,
+                "size": page_size,
+                "embed": "bundles/bitstreams",
+            }
+            if self._search_query:
+                params["query"] = self._search_query
+
             try:
                 data = await self._get_json(
                     f"{self._api_root}/discover/search/objects",
-                    params={
-                        "dsoType": "item",
-                        "page": page,
-                        "size": page_size,
-                        "embed": "bundles/bitstreams",
-                    },
+                    params=params,
                 )
             except Exception as exc:
                 logger.error("DSpace item discovery failed at page %d: %s", page, exc)
@@ -156,8 +174,12 @@ class DSpaceConnector(ContentSource):
             for obj in embedded:
                 dso = obj.get("_embedded", {}).get("indexableObject", {})
                 item = self._parse_item(dso)
-                if item:
-                    yield item
+                if item is None:
+                    continue
+                if self._title_must_match and self._title_must_match not in item.name.lower():
+                    logger.debug("Skipping item (title filter): %s", item.name)
+                    continue
+                yield item
 
             page_info = search_result.get("page", {})
             total_pages = page_info.get("totalPages", 1)

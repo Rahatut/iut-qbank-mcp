@@ -40,10 +40,36 @@ class ExtractedDocument:
     extraction_method: str  # "native" | "ocr" | "hybrid" | "failed"
     overall_quality: float  # 0.0-1.0
     page_count: int
+    needs_ocr: bool = False  # native text insufficient, OCR recommended
 
     @property
     def full_text(self) -> str:
         return "\n\n".join(p.text for p in self.pages if p.text.strip())
+
+    def with_pages(self, pages: list[PageText]) -> ExtractedDocument:
+        """Return a copy with replaced pages and recomputed summary fields.
+
+        Used after OCR replaces low-quality native pages: extraction_method and
+        overall_quality must reflect the new text, not the pre-OCR scan.
+        """
+        if any(p.text.strip() for p in pages):
+            ocr_pages = sum(1 for p in pages if p.extraction_method == "ocr")
+            if ocr_pages == len(pages):
+                method = "ocr"
+            elif ocr_pages:
+                method = "hybrid"
+            else:
+                method = "native"
+        else:
+            method = "failed"
+        quality = sum(p.quality_score for p in pages) / len(pages) if pages else 0.0
+        return ExtractedDocument(
+            pages=pages,
+            extraction_method=method,
+            overall_quality=round(quality, 3),
+            page_count=len(pages),
+            needs_ocr=False,
+        )
 
 
 @dataclass
@@ -86,6 +112,14 @@ class Extractor(ABC):
         """Extract text from raw PDF bytes. Returns all pages."""
         ...
 
+    def get_page_image(self, pdf_bytes: bytes, page_number: int) -> bytes:
+        """Render one page to image bytes for OCR. 1-indexed page_number.
+
+        Optional: OCRProcessor implementations that do not need page images
+        may leave this unsupported.
+        """
+        raise NotImplementedError(f"{type(self).__name__} cannot render page images")
+
 
 class ExtractionChecker(ABC):
     """Determines whether extracted text meets quality threshold. DEV-015.
@@ -113,8 +147,31 @@ class OCRProcessor(ABC):
 
     @abstractmethod
     def ocr_page(self, page_image: bytes, page_number: int) -> PageText:
-        """Run OCR on a page image and return extracted text with metadata."""
+        """Run OCR on a page image (PNG/JPEG bytes) and return extracted text + metadata."""
         ...
+
+    def ocr_document(
+        self,
+        extractor: Extractor,
+        pdf_bytes: bytes,
+        extracted: ExtractedDocument,
+    ) -> tuple[list[PageText], int]:
+        """OCR every page of a document lacking a usable text layer.
+
+        Returns (pages, failed_count). Implementations may override with a
+        faster or batched strategy; the default is page-by-page.
+        """
+        pages: list[PageText] = []
+        failed = 0
+        for page in extracted.pages:
+            result = self.ocr_page(
+                extractor.get_page_image(pdf_bytes, page.page_number),
+                page.page_number,
+            )
+            if not result.text.strip():
+                failed += 1
+            pages.append(result)
+        return pages, failed
 
 
 class MetadataExtractor(ABC):

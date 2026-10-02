@@ -13,7 +13,12 @@ import logging
 from PIL import Image
 
 from qbank.infrastructure.config import get_settings
-from qbank.processing.interfaces import OCRProcessor, PageText
+from qbank.processing.interfaces import (
+    ExtractedDocument,
+    Extractor,
+    OCRProcessor,
+    PageText,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,3 +79,60 @@ class TesseractOCRProcessor(OCRProcessor):
                 extraction_method="ocr_failed",
                 quality_score=0.0,
             )
+
+    def ocr_document(
+        self,
+        extractor: Extractor,
+        pdf_bytes: bytes,
+        extracted: ExtractedDocument,
+    ) -> tuple[list[PageText], int]:
+        """OCR every page of a document that lacked a usable text layer.
+
+        Scanned question papers return zero native characters, so without this
+        pass they produce no chunks and nothing reaches the vector index.
+
+        Native text is preferred where it exists: OCR is only applied to pages
+        the quality checker already rejected.
+
+        Returns (pages, failed_count).
+        """
+        pages: list[PageText] = []
+        failed = 0
+        pending = [p for p in extracted.pages if p.extraction_method != "native"]
+        total = len(pending)
+
+        for position, page in enumerate(extracted.pages, start=1):
+            if page.extraction_method == "native":
+                pages.append(page)
+                continue
+
+            try:
+                image = extractor.get_page_image(pdf_bytes, page.page_number)
+            except Exception as exc:
+                logger.error(
+                    "Could not render page %d for OCR: %s", page.page_number, exc
+                )
+                failed += 1
+                pages.append(page)
+                continue
+
+            ocr_page = self.ocr_page(image, page.page_number)
+            if not ocr_page.text.strip():
+                failed += 1
+                # Keep the native text: even poor native text beats nothing.
+                pages.append(page)
+            else:
+                pages.append(ocr_page)
+
+            # OCR dominates ingestion wall-clock for scanned papers; log
+            # progress so a long document is visibly moving, not hung.
+            if position % 10 == 0 or position == len(extracted.pages):
+                logger.info(
+                    "  ↳ OCR progress: %d/%d pages (%d to OCR, %d failed)",
+                    position,
+                    len(extracted.pages),
+                    total,
+                    failed,
+                )
+
+        return pages, failed
